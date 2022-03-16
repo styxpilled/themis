@@ -1,7 +1,8 @@
 use eframe::{egui, epi};
-use fs_extra::dir::get_size;
-use std::env::{current_dir};
+use std::env::{current_dir, set_current_dir};
 use std::fs::{read_dir};
+use fs_extra::dir::get_size;
+use bytesize::ByteSize;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -173,6 +174,7 @@ impl epi::App for App {
         let dir_path = std::path::Path::new(&path);
         if let Ok(dir) = read_dir(dir_path) {
           // saved_dir = dir.copy();
+          set_current_dir(dir_path).unwrap();
           *saved_path = dir_path.to_path_buf();
           *dir_entries = Vec::new();
           
@@ -192,13 +194,14 @@ impl epi::App for App {
         let name = entry.name.clone();
         let _path = entry.path.clone();
         let is_dir = entry.path.is_dir();
-        let folder_size = entry.size;
+        let folder_size = ByteSize(entry.size);
         let label = if is_dir {
           format!("{}/", name)
         } else {
           name.to_owned()
         };
         ui.horizontal(|ui| {
+          // ui.label(path.to_str().unwrap());
           ui.label(label);
           ui.label(folder_size.to_string());
         });
