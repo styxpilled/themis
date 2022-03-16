@@ -1,5 +1,7 @@
 use eframe::{egui, epi};
 use fs_extra::dir::get_size;
+use std::env::{current_dir};
+use std::fs::{read_dir};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -9,7 +11,7 @@ pub struct App {
   label: String,
   path: String,
   saved_path: std::path::PathBuf,
-  dir_entries: Vec<Dir>,
+  dir_entries: Vec<DirEntry>,
   // this how you opt-out of serialization of a member
   #[cfg_attr(feature = "persistence", serde(skip))]
   value: f32,
@@ -18,12 +20,12 @@ pub struct App {
 impl Default for App {
   fn default() -> Self {
     let mut dir_entries = Vec::new();
-    let path = std::env::current_dir().unwrap();
-    if let Ok(dir) = std::fs::read_dir(path) {
+    let path = current_dir().unwrap();
+    if let Ok(dir) = read_dir(path) {
       for entry in dir {
         let entrypath = entry.unwrap().path();
         let folder_size = get_size(&entrypath).unwrap();
-        dir_entries.push(Dir {
+        dir_entries.push(DirEntry {
           name: entrypath.file_name().unwrap().to_str().unwrap().to_owned(),
           path: entrypath,
           size: folder_size,
@@ -34,12 +36,12 @@ impl Default for App {
       // Example stuff:
       label: "Hello World!".to_owned(),
       value: 2.7,
-      path: std::env::current_dir()
+      path: current_dir()
         .unwrap()
         .to_str()
         .unwrap()
         .to_owned(),
-      saved_path: std::env::current_dir().unwrap(),
+      saved_path: current_dir().unwrap(),
       dir_entries,
     }
   }
@@ -52,18 +54,17 @@ enum Error {
 
 
 #[derive(Clone)]
-struct Dir {
+struct DirEntry {
   path: std::path::PathBuf,
   name: String,
   size: u64,
-  // contents: Vec<Dir>,
 }
-impl Default for Dir {
+impl Default for DirEntry {
   fn default() -> Self {
     Self {
-      path: std::env::current_dir().unwrap(),
-      name: std::env::current_dir().unwrap().to_str().unwrap().split("/").last().unwrap().to_owned(),
-      size: get_size(std::env::current_dir().unwrap()).unwrap(),
+      path: current_dir().unwrap(),
+      name: current_dir().unwrap().to_str().unwrap().split('/').last().unwrap().to_owned(),
+      size: get_size(current_dir().unwrap()).unwrap(),
       // contents: Vec::new(),
     }
   }
@@ -97,7 +98,7 @@ impl epi::App for App {
     }
 
     let dir_path = std::path::Path::new(&path);
-    if let Ok(_dir) = std::fs::read_dir(dir_path) {
+    if let Ok(_dir) = read_dir(dir_path) {
       // saved_dir = dir.copy();
       *saved_path = dir_path.to_path_buf();
     }
@@ -158,6 +159,7 @@ impl epi::App for App {
           ui.label(" and ");
           ui.hyperlink_to("eframe", "https://github.com/emilk/egui/tree/master/eframe");
         });
+        egui::warn_if_debug_build(ui);
       });
     });
 
@@ -169,7 +171,7 @@ impl epi::App for App {
       // create a variable to hold the dir content that we set later
       if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
         let dir_path = std::path::Path::new(&path);
-        if let Ok(dir) = std::fs::read_dir(dir_path) {
+        if let Ok(dir) = read_dir(dir_path) {
           // saved_dir = dir.copy();
           *saved_path = dir_path.to_path_buf();
           *dir_entries = Vec::new();
@@ -177,7 +179,7 @@ impl epi::App for App {
           for entry in dir {
             let entrypath = entry.unwrap().path();
             let folder_size = get_size(&entrypath).unwrap();
-            dir_entries.push(Dir {
+            dir_entries.push(DirEntry {
               name: entrypath.file_name().unwrap().to_str().unwrap().to_owned(),
               path: entrypath,
               size: folder_size,
@@ -196,11 +198,11 @@ impl epi::App for App {
         } else {
           name.to_owned()
         };
-        ui.label(label);
-        ui.label(folder_size.to_string());
+        ui.horizontal(|ui| {
+          ui.label(label);
+          ui.label(folder_size.to_string());
+        });
       }
-
-      egui::warn_if_debug_build(ui);
     });
 
     if false {
