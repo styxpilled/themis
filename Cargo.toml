@@ -1,0 +1,22 @@
+[package]
+name = "themis"
+version = "0.1.0"
+authors = ["styxpilled"]
+edition = "2021"
+rust-version = "1.56"
+
+[dependencies]
+eframe = "0.17.0" # Gives us egui, epi and web+native backends
+
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+default = []
+persistence = ["eframe/persistence", "serde"] # Enable if you want to persist app state on shutdown
+
+[profile.release]
+opt-level = 2 # fast and small wasm
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.6"
+tracing-wasm = "0.2"
