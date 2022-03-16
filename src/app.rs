@@ -9,14 +9,27 @@ pub struct App {
   label: String,
   path: String,
   saved_path: std::path::PathBuf,
+  dir_entries: Vec<Dir>,
   // this how you opt-out of serialization of a member
   #[cfg_attr(feature = "persistence", serde(skip))]
   value: f32,
-  data: Data,
 }
 
 impl Default for App {
   fn default() -> Self {
+    let mut dir_entries = Vec::new();
+    let path = std::env::current_dir().unwrap();
+    if let Ok(dir) = std::fs::read_dir(path) {
+      for entry in dir {
+        let entrypath = entry.unwrap().path();
+        let folder_size = get_size(&entrypath).unwrap();
+        dir_entries.push(Dir {
+          name: entrypath.file_name().unwrap().to_str().unwrap().to_owned(),
+          path: entrypath,
+          size: folder_size,
+        });
+      }
+    }
     Self {
       // Example stuff:
       label: "Hello World!".to_owned(),
@@ -27,7 +40,7 @@ impl Default for App {
         .unwrap()
         .to_owned(),
       saved_path: std::env::current_dir().unwrap(),
-      data: Data::default(),
+      dir_entries,
     }
   }
 }
@@ -37,27 +50,25 @@ enum Error {
   // dont panic
 }
 
-struct Data {
-  current_path: std::path::PathBuf,
-  current_dir: std::fs::ReadDir,
-}
 
 #[derive(Clone)]
 struct Dir {
   path: std::path::PathBuf,
   name: String,
   size: u64,
-  contents: Vec<Dir>,
+  // contents: Vec<Dir>,
 }
-
-impl Default for Data {
+impl Default for Dir {
   fn default() -> Self {
     Self {
-      current_dir: std::fs::read_dir(std::env::current_dir().unwrap().to_path_buf()).unwrap(),
-      current_path: std::env::current_dir().unwrap().to_path_buf(),
+      path: std::env::current_dir().unwrap(),
+      name: std::env::current_dir().unwrap().to_str().unwrap().split("/").last().unwrap().to_owned(),
+      size: get_size(std::env::current_dir().unwrap()).unwrap(),
+      // contents: Vec::new(),
     }
   }
 }
+
 
 impl epi::App for App {
   fn name(&self) -> &str {
@@ -76,7 +87,7 @@ impl epi::App for App {
       value,
       path,
       saved_path,
-      data,
+      dir_entries
     } = self;
     // Load previous app state (if any).
     // Note that you must enable the `persistence` feature for this to work.
@@ -107,7 +118,7 @@ impl epi::App for App {
       value,
       path,
       saved_path,
-      data,
+      dir_entries
     } = self;
 
     // Examples of how to create different panels and windows.
@@ -158,26 +169,35 @@ impl epi::App for App {
       // create a variable to hold the dir content that we set later
       if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
         let dir_path = std::path::Path::new(&path);
-        if let Ok(_dir) = std::fs::read_dir(dir_path) {
+        if let Ok(dir) = std::fs::read_dir(dir_path) {
           // saved_dir = dir.copy();
           *saved_path = dir_path.to_path_buf();
+          *dir_entries = Vec::new();
+          
+          for entry in dir {
+            let entrypath = entry.unwrap().path();
+            let folder_size = get_size(&entrypath).unwrap();
+            dir_entries.push(Dir {
+              name: entrypath.file_name().unwrap().to_str().unwrap().to_owned(),
+              path: entrypath,
+              size: folder_size,
+            });
+          }
         }
       }
-      // check if saved dir has a value
-      if let Ok(dir) = std::fs::read_dir(saved_path) {
-        for entry in dir {
-          let path = entry.unwrap().path();
-          let name = path.file_name().unwrap().to_str().unwrap();
-          let is_dir = path.is_dir();
-          let folder_size = get_size(&path).unwrap();
-          let label = if is_dir {
-            format!("{}/", name)
-          } else {
-            name.to_owned()
-          };
-          ui.label(label);
-          ui.label(folder_size.to_string());
-        }
+
+      for entry in dir_entries {
+        let name = entry.name.clone();
+        let _path = entry.path.clone();
+        let is_dir = entry.path.is_dir();
+        let folder_size = entry.size;
+        let label = if is_dir {
+          format!("{}/", name)
+        } else {
+          name.to_owned()
+        };
+        ui.label(label);
+        ui.label(folder_size.to_string());
       }
 
       egui::warn_if_debug_build(ui);
