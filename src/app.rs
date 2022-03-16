@@ -1,4 +1,5 @@
 use eframe::{egui, epi};
+use fs_extra::dir::get_size;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -11,6 +12,7 @@ pub struct App {
   // this how you opt-out of serialization of a member
   #[cfg_attr(feature = "persistence", serde(skip))]
   value: f32,
+  data: Data,
 }
 
 impl Default for App {
@@ -25,6 +27,7 @@ impl Default for App {
         .unwrap()
         .to_owned(),
       saved_path: std::env::current_dir().unwrap(),
+      data: Data::default(),
     }
   }
 }
@@ -32,6 +35,28 @@ impl Default for App {
 #[derive(Debug)]
 enum Error {
   // dont panic
+}
+
+struct Data {
+  current_path: std::path::PathBuf,
+  current_dir: std::fs::ReadDir,
+}
+
+#[derive(Clone)]
+struct Dir {
+  path: std::path::PathBuf,
+  name: String,
+  size: u64,
+  contents: Vec<Dir>,
+}
+
+impl Default for Data {
+  fn default() -> Self {
+    Self {
+      current_dir: std::fs::read_dir(std::env::current_dir().unwrap().to_path_buf()).unwrap(),
+      current_path: std::env::current_dir().unwrap().to_path_buf(),
+    }
+  }
 }
 
 impl epi::App for App {
@@ -46,11 +71,24 @@ impl epi::App for App {
     _frame: &epi::Frame,
     _storage: Option<&dyn epi::Storage>,
   ) {
+    let Self {
+      label,
+      value,
+      path,
+      saved_path,
+      data,
+    } = self;
     // Load previous app state (if any).
     // Note that you must enable the `persistence` feature for this to work.
     #[cfg(feature = "persistence")]
     if let Some(storage) = _storage {
       *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
+    }
+
+    let dir_path = std::path::Path::new(&path);
+    if let Ok(_dir) = std::fs::read_dir(dir_path) {
+      // saved_dir = dir.copy();
+      *saved_path = dir_path.to_path_buf();
     }
   }
 
@@ -64,7 +102,13 @@ impl epi::App for App {
   /// Called each time the UI needs repainting, which may be many times per second.
   /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
   fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
-    let Self { label, value, path, saved_path } = self;
+    let Self {
+      label,
+      value,
+      path,
+      saved_path,
+      data,
+    } = self;
 
     // Examples of how to create different panels and windows.
     // Pick whichever suits you.
@@ -110,30 +154,31 @@ impl epi::App for App {
       // The central panel the region left after adding TopPanel's and SidePanel's
 
       ui.heading(path.clone());
-      ui.text_edit_singleline(path);
-      ui.text_edit_singleline(path);
+      let search = ui.text_edit_singleline(path);
       // create a variable to hold the dir content that we set later
-      let dir_path = std::path::Path::new(&path);
-      if let Ok(_dir) = std::fs::read_dir(dir_path) {
-        // saved_dir = dir.copy();
-        *saved_path = dir_path.to_path_buf();
+      if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+        let dir_path = std::path::Path::new(&path);
+        if let Ok(_dir) = std::fs::read_dir(dir_path) {
+          // saved_dir = dir.copy();
+          *saved_path = dir_path.to_path_buf();
+        }
       }
       // check if saved dir has a value
       if let Ok(dir) = std::fs::read_dir(saved_path) {
         for entry in dir {
-            let path = entry.unwrap().path();
-            let name = path.file_name().unwrap().to_str().unwrap();
-            let is_dir = path.is_dir();
-            let label = if is_dir {
-              format!("{}/", name)
-            } else {
-              name.to_owned()
-            };
-            ui.label(label);
+          let path = entry.unwrap().path();
+          let name = path.file_name().unwrap().to_str().unwrap();
+          let is_dir = path.is_dir();
+          let folder_size = get_size(&path).unwrap();
+          let label = if is_dir {
+            format!("{}/", name)
+          } else {
+            name.to_owned()
+          };
+          ui.label(label);
+          ui.label(folder_size.to_string());
         }
       }
-      // rewrite this to keep a copy of the last valid dir, and only render that
-      // if the dir is valid
 
       egui::warn_if_debug_build(ui);
     });
