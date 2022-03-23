@@ -3,6 +3,7 @@ use std::env::{current_dir, set_current_dir};
 use std::fs::{read_dir};
 use fs_extra::dir::get_size;
 use bytesize::ByteSize;
+use mft_ntfs;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -12,6 +13,8 @@ pub struct App {
   label: String,
   path: String,
   saved_path: std::path::PathBuf,
+  previous_path: std::path::PathBuf,
+  filesystem: mft_ntfs::Filesystem,
   dir_entries: Vec<DirEntry>,
   // this how you opt-out of serialization of a member
   #[cfg_attr(feature = "persistence", serde(skip))]
@@ -33,6 +36,7 @@ impl Default for App {
         });
       }
     }
+    let drive_letters = Some(vec!['D']);
     Self {
       // Example stuff:
       label: "Hello World!".to_owned(),
@@ -43,7 +47,9 @@ impl Default for App {
         .unwrap()
         .to_owned(),
       saved_path: current_dir().unwrap(),
+      previous_path: current_dir().unwrap(),
       dir_entries,
+      filesystem: mft_ntfs::main(drive_letters).unwrap().remove(0),
     }
   }
 }
@@ -89,7 +95,9 @@ impl epi::App for App {
       value,
       path,
       saved_path,
-      dir_entries
+      previous_path,
+      dir_entries,
+      filesystem,
     } = self;
     // Load previous app state (if any).
     // Note that you must enable the `persistence` feature for this to work.
@@ -120,7 +128,9 @@ impl epi::App for App {
       value,
       path,
       saved_path,
-      dir_entries
+      previous_path,
+      dir_entries,
+      filesystem,
     } = self;
 
     // Examples of how to create different panels and windows.
@@ -170,29 +180,44 @@ impl epi::App for App {
       ui.heading(path.clone());
       let search = ui.text_edit_singleline(path);
       // create a variable to hold the dir content that we set later
-      if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
-        let dir_path = std::path::Path::new(&path);
+
+      if search.changed() {
+        *saved_path = std::path::PathBuf::from(path.clone());
+      }
+
+      if ui.button("Go up").clicked() {
+        *saved_path = saved_path.parent().unwrap().to_path_buf();
+      }
+
+      if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter) || saved_path != previous_path  {
+        let dir_path = std::path::Path::new(&saved_path);
         if let Ok(dir) = read_dir(dir_path) {
           // saved_dir = dir.copy();
+
           set_current_dir(dir_path).unwrap();
+          *path = dir_path.to_str().unwrap().to_owned();
           *saved_path = dir_path.to_path_buf();
           *dir_entries = Vec::new();
-          
+
           for entry in dir {
             let entrypath = entry.unwrap().path();
-            let folder_size = get_size(&entrypath).unwrap();
+            let entrypath2 = entrypath.clone().into_os_string().into_string().unwrap();
+            // let folder_size = get_size(&entrypath2).unwrap();
+            // let folder_size = 0;
+            let folder_size = filesystem.files.get(&entrypath2).unwrap().real_size;
             dir_entries.push(DirEntry {
-              name: entrypath.file_name().unwrap().to_str().unwrap().to_owned(),
+              name: entrypath.clone().file_name().unwrap().to_str().unwrap().to_owned(),
               path: entrypath,
               size: folder_size,
             });
           }
         }
+        *previous_path = saved_path.clone();
       }
 
       for entry in dir_entries {
         let name = entry.name.clone();
-        let _path = entry.path.clone();
+        let path = entry.path.clone();
         let is_dir = entry.path.is_dir();
         let folder_size = ByteSize(entry.size);
         let label = if is_dir {
@@ -202,6 +227,9 @@ impl epi::App for App {
         };
         ui.horizontal(|ui| {
           // ui.label(path.to_str().unwrap());
+          if ui.button(&label).clicked() && is_dir {
+            *saved_path = path.to_path_buf()
+          }
           ui.label(label);
           ui.label(folder_size.to_string());
         });
