@@ -1,9 +1,11 @@
 use eframe::{egui, epi};
 use std::env::{current_dir, set_current_dir};
 use std::fs::{read_dir};
+use std::ffi::OsString;
+// use crossbeam_utils::thread;
 use fs_extra::dir::get_size;
 use bytesize::ByteSize;
-use mft_ntfs;
+// use mft_ntfs;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -36,7 +38,7 @@ impl Default for App {
         });
       }
     }
-    let drive_letters = Some(vec!['D']);
+    // let drive_letters = Some(vec!['D']);
     Self {
       // Example stuff:
       label: "Hello World!".to_owned(),
@@ -49,7 +51,11 @@ impl Default for App {
       saved_path: current_dir().unwrap(),
       previous_path: current_dir().unwrap(),
       dir_entries,
-      filesystem: mft_ntfs::main(drive_letters).unwrap().remove(0),
+      filesystem: mft_ntfs::Filesystem::new(
+        OsString::from("D:\\"),
+        4096,
+        0,
+      ),
     }
   }
 }
@@ -91,12 +97,12 @@ impl epi::App for App {
     _storage: Option<&dyn epi::Storage>,
   ) {
     let Self {
-      label,
-      value,
+      label: _,
+      value: _,
       path,
       saved_path,
-      previous_path,
-      dir_entries,
+      previous_path: _,
+      dir_entries: _,
       filesystem,
     } = self;
     // Load previous app state (if any).
@@ -111,6 +117,18 @@ impl epi::App for App {
       // saved_dir = dir.copy();
       *saved_path = dir_path.to_path_buf();
     }
+    let drive_letters = Some(vec!['D']);
+    *filesystem = mft_ntfs::main(drive_letters).unwrap().remove(0);
+
+    // thread::scope(|s|{
+    //     s.spawn(move |_|{
+    //     });
+    // });
+    
+      
+    //   move || {
+    //   *filesystem = mft_ntfs::main(drive_letters).unwrap().remove(0)
+    // }).join().unwrap();
   }
 
   /// Called by the frame work to save state before shutdown.
