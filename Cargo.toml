@@ -13,6 +13,7 @@ bytesize = {version = "1.1.0", features = ["serde"]}
 serde = { version = "1", features = ["derive"], optional = true }
 mft_ntfs = { git = "https://github.com/styxpilled/mft-ntfs", features = ["progress"] }
 crossbeam-utils = "0.8.8"
+open = "2.1.1"
 
 [features]
 default = []

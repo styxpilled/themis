@@ -245,8 +245,13 @@ impl epi::App for App {
         };
         ui.horizontal(|ui| {
           // ui.label(path.to_str().unwrap());
-          if ui.button(&label).clicked() && is_dir {
-            *saved_path = path.to_path_buf()
+          if ui.button(&label).clicked() {
+            if is_dir {
+              *saved_path = path.to_path_buf()
+            }
+            else {
+              open::that(path.to_str().unwrap()).unwrap();
+            }
           }
           ui.label(label);
           ui.label(folder_size.to_string());
