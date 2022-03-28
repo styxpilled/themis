@@ -1,10 +1,9 @@
 use eframe::{egui, epi};
 use std::env::{current_dir, set_current_dir};
-use std::fs::{read_dir};
+use std::fs::read_dir;
 use std::ffi::OsString;
 use std::sync::mpsc;
 use std::thread;
-// use fs_extra::dir::get_size;
 use bytesize::ByteSize;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -20,8 +19,6 @@ pub struct App {
   #[cfg_attr(feature = "persistence", serde(skip))]
   receiver: mpsc::Receiver<mft_ntfs::Filesystem>,
   dir_entries: Vec<DirEntry>,
-  #[cfg_attr(feature = "persistence", serde(skip))]
-  value: f32,
 }
 
 impl Default for App {
@@ -44,7 +41,6 @@ impl Default for App {
       }
     Self {
       label: "Hello World!".to_owned(),
-      value: 2.7,
       path: current_dir()
         .unwrap()
         .to_str()
@@ -138,7 +134,6 @@ impl epi::App for App {
   fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
     let Self {
       label,
-      value,
       path,
       saved_path,
       previous_path,
@@ -146,11 +141,6 @@ impl epi::App for App {
       filesystem,
       receiver
     } = self;
-
-    // Examples of how to create different panels and windows.
-    // Pick whichever suits you.
-    // Tip: a good default choice is to just keep the `CentralPanel`.
-    // For inspiration and more examples, go to https://emilk.github.io/egui
 
     if filesystem.entries.is_empty() {
       let output = receiver.try_recv();
@@ -178,11 +168,6 @@ impl epi::App for App {
         ui.text_edit_singleline(label);
       });
 
-      ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-      if ui.button("Increment").clicked() {
-        *value += 1.0;
-      }
-
       ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
         ui.horizontal(|ui| {
           ui.spacing_mut().item_spacing.x = 0.0;
@@ -196,11 +181,8 @@ impl epi::App for App {
     });
 
     egui::CentralPanel::default().show(ctx, |ui| {
-      // The central panel the region left after adding TopPanel's and SidePanel's
-
       ui.heading(path.clone());
       let search = ui.text_edit_singleline(path);
-      // create a variable to hold the dir content that we set later
 
       if search.changed() {
         *saved_path = std::path::PathBuf::from(path.clone());
@@ -213,8 +195,6 @@ impl epi::App for App {
       if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter) || saved_path != previous_path  {
         let dir_path = std::path::Path::new(&saved_path);
         if let Ok(dir) = read_dir(dir_path) {
-          // saved_dir = dir.copy();
-
           set_current_dir(dir_path).unwrap();
           *path = dir_path.to_str().unwrap().to_owned();
           *saved_path = dir_path.to_path_buf();
@@ -223,12 +203,10 @@ impl epi::App for App {
           for entry in dir {
             let entrypath = entry.unwrap().path();
             let entrypath2 = entrypath.clone().into_os_string().into_string().unwrap();
-            let folder_size;
-            let f = match filesystem.files.get(&entrypath2) {
-              Some(f) => f.real_size,
+            let folder_size = match filesystem.files.get(&entrypath2) {
+              Some(folder_size) => folder_size.real_size,
               None => 0,
             };
-            folder_size = f;
 
             dir_entries.push(DirEntry {
               name: entrypath.clone().file_name().unwrap().to_str().unwrap().to_owned(),
@@ -250,8 +228,8 @@ impl epi::App for App {
         } else {
           name.to_owned()
         };
+
         ui.horizontal(|ui| {
-          // ui.label(path.to_str().unwrap());
           if ui.button(&label).clicked() {
             if is_dir {
               *saved_path = path.to_path_buf()
