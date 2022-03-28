@@ -15,7 +15,7 @@ mft_ntfs = { git = "https://github.com/styxpilled/mft-ntfs", features = ["progre
 open = "2.1.1"
 
 [features]
-default = []
+default = ["persistence"]
 persistence = ["eframe/persistence", "serde"] # Enable if you want to persist app state on shutdown
 
 [profile.release]

@@ -4,22 +4,22 @@ use std::fs::{read_dir};
 use std::ffi::OsString;
 use std::sync::mpsc;
 use std::thread;
-use fs_extra::dir::get_size;
+// use fs_extra::dir::get_size;
 use bytesize::ByteSize;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))] // if we add new fields, give them default values when deserializing old state
 pub struct App {
-  // Example stuff:
   label: String,
   path: String,
   saved_path: std::path::PathBuf,
   previous_path: std::path::PathBuf,
+  #[cfg_attr(feature = "persistence", serde(skip))]
   filesystem: mft_ntfs::Filesystem,
+  #[cfg_attr(feature = "persistence", serde(skip))]
   receiver: mpsc::Receiver<mft_ntfs::Filesystem>,
   dir_entries: Vec<DirEntry>,
-  // this how you opt-out of serialization of a member
   #[cfg_attr(feature = "persistence", serde(skip))]
   value: f32,
 }
@@ -30,18 +30,19 @@ impl Default for App {
     let path = current_dir().unwrap();
     if let Ok(dir) = read_dir(path) {
       for entry in dir {
-        let entrypath = entry.unwrap().path();
-        let folder_size = get_size(&entrypath).unwrap();
-        dir_entries.push(DirEntry {
-          name: entrypath.file_name().unwrap().to_str().unwrap().to_owned(),
-          path: entrypath,
-          size: folder_size,
-        });
+          let entry = entry.unwrap();
+          let metadata = entry.metadata().unwrap();
+          let name = entry.file_name().into_string().unwrap();
+          let size = metadata.len();
+          let dir_entry = DirEntry {
+            name,
+            path: entry.path(),
+            size,
+          };
+          dir_entries.push(dir_entry);
+        }
       }
-    }
-    // let drive_letters = Some(vec!['D']);
     Self {
-      // Example stuff:
       label: "Hello World!".to_owned(),
       value: 2.7,
       path: current_dir()
@@ -68,7 +69,7 @@ enum Error {
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
 struct DirEntry {
   path: std::path::PathBuf,
   name: String,
@@ -79,8 +80,7 @@ impl Default for DirEntry {
     Self {
       path: current_dir().unwrap(),
       name: current_dir().unwrap().to_str().unwrap().split('/').last().unwrap().to_owned(),
-      size: get_size(current_dir().unwrap()).unwrap(),
-      // contents: Vec::new(),
+      size: 0
     }
   }
 }
@@ -96,29 +96,13 @@ impl epi::App for App {
     &mut self,
     _ctx: &egui::Context,
     _frame: &epi::Frame,
-    _storage: Option<&dyn epi::Storage>,
+    storage: Option<&dyn epi::Storage>,
   ) {
-    let Self {
-      label: _,
-      value: _,
-      path,
-      saved_path,
-      previous_path: _,
-      dir_entries: _,
-      receiver: _,
-      filesystem: _,
-    } = self;
     // Load previous app state (if any).
     // Note that you must enable the `persistence` feature for this to work.
     #[cfg(feature = "persistence")]
-    if let Some(storage) = _storage {
+    if let Some(storage) = storage {
       *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
-    }
-
-    let dir_path = std::path::Path::new(&path);
-    if let Ok(_dir) = read_dir(dir_path) {
-      // saved_dir = dir.copy();
-      *saved_path = dir_path.to_path_buf();
     }
 
     let (sender, new_receiver) = mpsc::channel();
@@ -239,8 +223,6 @@ impl epi::App for App {
           for entry in dir {
             let entrypath = entry.unwrap().path();
             let entrypath2 = entrypath.clone().into_os_string().into_string().unwrap();
-            // let folder_size = get_size(&entrypath2).unwrap();
-            // let folder_size = 0;
             let folder_size;
             let f = match filesystem.files.get(&entrypath2) {
               Some(f) => f.real_size,
