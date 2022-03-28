@@ -2,10 +2,10 @@ use eframe::{egui, epi};
 use std::env::{current_dir, set_current_dir};
 use std::fs::{read_dir};
 use std::ffi::OsString;
-// use crossbeam_utils::thread;
+use std::sync::mpsc;
+use std::thread;
 use fs_extra::dir::get_size;
 use bytesize::ByteSize;
-// use mft_ntfs;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -17,6 +17,7 @@ pub struct App {
   saved_path: std::path::PathBuf,
   previous_path: std::path::PathBuf,
   filesystem: mft_ntfs::Filesystem,
+  receiver: mpsc::Receiver<mft_ntfs::Filesystem>,
   dir_entries: Vec<DirEntry>,
   // this how you opt-out of serialization of a member
   #[cfg_attr(feature = "persistence", serde(skip))]
@@ -51,6 +52,7 @@ impl Default for App {
       saved_path: current_dir().unwrap(),
       previous_path: current_dir().unwrap(),
       dir_entries,
+      receiver: mpsc::channel().1,
       filesystem: mft_ntfs::Filesystem::new(
         OsString::from("D:\\"),
         4096,
@@ -103,7 +105,8 @@ impl epi::App for App {
       saved_path,
       previous_path: _,
       dir_entries: _,
-      filesystem,
+      receiver: _,
+      filesystem: _,
     } = self;
     // Load previous app state (if any).
     // Note that you must enable the `persistence` feature for this to work.
@@ -117,18 +120,26 @@ impl epi::App for App {
       // saved_dir = dir.copy();
       *saved_path = dir_path.to_path_buf();
     }
-    let drive_letters = Some(vec!['D']);
-    *filesystem = mft_ntfs::main(drive_letters).unwrap().remove(0);
 
-    // thread::scope(|s|{
-    //     s.spawn(move |_|{
-    //     });
-    // });
-    
-      
-    //   move || {
-    //   *filesystem = mft_ntfs::main(drive_letters).unwrap().remove(0)
-    // }).join().unwrap();
+    let (sender, new_receiver) = mpsc::channel();
+
+    self.receiver = new_receiver;
+
+    thread::spawn(move || {
+      let drive_letters = Some(vec!['D']);
+      let val = mft_ntfs::main(drive_letters);
+      let mut val = match val {
+        Ok(val) => val,
+        Err(err) => {
+          println!("{:?}", err);
+          return;
+        }
+      };
+      sender.send(val.remove(0)).unwrap();
+  });
+
+    // let drive_letters = Some(vec!['D']);
+    // *filesystem = mft_ntfs::main(drive_letters).unwrap().remove(0);
   }
 
   /// Called by the frame work to save state before shutdown.
@@ -149,12 +160,20 @@ impl epi::App for App {
       previous_path,
       dir_entries,
       filesystem,
+      receiver
     } = self;
 
     // Examples of how to create different panels and windows.
     // Pick whichever suits you.
     // Tip: a good default choice is to just keep the `CentralPanel`.
     // For inspiration and more examples, go to https://emilk.github.io/egui
+
+    if filesystem.entries.is_empty() {
+      let output = receiver.try_recv();
+      if let Ok(output) = output {
+        *filesystem = output;
+      }
+    }
 
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
       // The top panel is often a good place for a menu bar:
@@ -222,7 +241,13 @@ impl epi::App for App {
             let entrypath2 = entrypath.clone().into_os_string().into_string().unwrap();
             // let folder_size = get_size(&entrypath2).unwrap();
             // let folder_size = 0;
-            let folder_size = filesystem.files.get(&entrypath2).unwrap().real_size;
+            let folder_size;
+            let f = match filesystem.files.get(&entrypath2) {
+              Some(f) => f.real_size,
+              None => 0,
+            };
+            folder_size = f;
+
             dir_entries.push(DirEntry {
               name: entrypath.clone().file_name().unwrap().to_str().unwrap().to_owned(),
               path: entrypath,
