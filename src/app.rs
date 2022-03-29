@@ -13,6 +13,7 @@ pub struct App {
   label: String,
   path: String,
   saved_path: std::path::PathBuf,
+  favourites: Vec<std::path::PathBuf>,
   previous_path: std::path::PathBuf,
   #[cfg_attr(feature = "persistence", serde(skip))]
   filesystem: mft_ntfs::Filesystem,
@@ -46,6 +47,7 @@ impl Default for App {
         .to_str()
         .unwrap()
         .to_owned(),
+      favourites: vec![],
       saved_path: current_dir().unwrap(),
       previous_path: current_dir().unwrap(),
       dir_entries,
@@ -135,6 +137,7 @@ impl epi::App for App {
     let Self {
       label,
       path,
+      favourites,
       saved_path,
       previous_path,
       dir_entries,
@@ -168,6 +171,13 @@ impl epi::App for App {
         ui.text_edit_singleline(label);
       });
 
+      ui.label("Starred:");
+      for favourite in favourites.clone() {
+        if ui.button(favourite.to_str().unwrap()).clicked() {
+          *saved_path = favourite;
+        }
+      }
+
       ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
         ui.horizontal(|ui| {
           ui.spacing_mut().item_spacing.x = 0.0;
@@ -188,10 +198,22 @@ impl epi::App for App {
         *saved_path = std::path::PathBuf::from(path.clone());
       }
 
-      if ui.button("Go up").clicked() {
-        *saved_path = saved_path.parent().unwrap().to_path_buf();
-      }
-
+      
+      ui.horizontal(|ui| {
+        if ui.button("Go up").clicked() {
+          *saved_path = saved_path.parent().unwrap().to_path_buf();
+        }
+        if ui.button("Go back").clicked() {
+          *saved_path = previous_path.to_path_buf();
+        }
+        if favourites.contains(saved_path) {
+          if ui.button("Remove from favourites").clicked() {
+            favourites.retain(|x| x != &saved_path.clone());
+          }
+        } else if ui.button("Add to favourites").clicked() {
+            favourites.push(saved_path.to_path_buf());
+        }
+      });
       if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter) || saved_path != previous_path  {
         let dir_path = std::path::Path::new(&saved_path);
         if let Ok(dir) = read_dir(dir_path) {
