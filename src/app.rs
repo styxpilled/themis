@@ -83,7 +83,6 @@ impl epi::App for App {
   fn name(&self) -> &str {
     "project themis"
   }
-
   /// Called once before the first frame.
   fn setup(
     &mut self,
@@ -175,7 +174,36 @@ impl epi::App for App {
     });
 
     egui::CentralPanel::default().show(ctx, |ui| {
-      ui.heading(path_search.clone());
+      ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        for dir in path_search.clone().split('\\') {
+          ui.label(">");
+          let mut new_path_search = path_search.clone();
+          new_path_search.truncate(new_path_search.find(dir).unwrap() + dir.len());
+          let popup_id = ui.make_persistent_id(new_path_search.clone());
+          let this_dir = ui.button(dir);
+          if this_dir.clicked() {
+            ui.memory().toggle_popup(popup_id);
+          }
+          egui::popup::popup_below_widget(ui, popup_id, &this_dir, |ui| {
+            ui.set_min_width(75.0);
+            ui.label(new_path_search.clone());
+            if let Ok(popup_dir) = read_dir(new_path_search.clone()) {
+              for newdir in popup_dir {
+                let newdir = newdir.unwrap();
+                let dir_path = newdir.path();
+                if newdir.metadata().unwrap().is_dir()
+                  && ui
+                    .button(newdir.file_name().to_str().unwrap())
+                    .clicked()
+                {
+                  *current_path = dir_path;
+                }
+              }
+            }
+          });
+        }
+      });
       let search = ui.text_edit_singleline(path_search);
 
       if search.changed() {
