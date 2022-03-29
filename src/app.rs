@@ -174,28 +174,28 @@ impl epi::App for App {
     });
 
     egui::CentralPanel::default().show(ctx, |ui| {
+      // * Breadcrumb navigation
       ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
+        // TODO: maybe use a PathBuf instead of a String?
+        // there are some problems with using a PathBuf
         for dir in path_search.clone().split('\\') {
           ui.label(">");
-          let mut new_path_search = path_search.clone();
-          new_path_search.truncate(new_path_search.find(dir).unwrap() + dir.len());
-          let popup_id = ui.make_persistent_id(new_path_search.clone());
-          let this_dir = ui.button(dir);
-          if this_dir.clicked() {
+          let mut path = path_search.clone();
+          path.truncate(path.find(dir).unwrap() + dir.len());
+          let popup_id = ui.make_persistent_id(path.clone());
+          let dir = ui.button(dir);
+          if dir.clicked() {
             ui.memory().toggle_popup(popup_id);
           }
-          egui::popup::popup_below_widget(ui, popup_id, &this_dir, |ui| {
+          egui::popup::popup_below_widget(ui, popup_id, &dir, |ui| {
             ui.set_min_width(75.0);
-            ui.label(new_path_search.clone());
-            if let Ok(popup_dir) = read_dir(new_path_search.clone()) {
-              for newdir in popup_dir {
-                let newdir = newdir.unwrap();
-                let dir_path = newdir.path();
-                if newdir.metadata().unwrap().is_dir()
-                  && ui
-                    .button(newdir.file_name().to_str().unwrap())
-                    .clicked()
+            if let Ok(popup_dir) = read_dir(path.clone()) {
+              for dir in popup_dir {
+                let dir = dir.unwrap();
+                let dir_path = dir.path();
+                if dir.metadata().unwrap().is_dir()
+                  && ui.button(dir.file_name().to_str().unwrap()).clicked()
                 {
                   *current_path = dir_path;
                 }
@@ -204,6 +204,7 @@ impl epi::App for App {
           });
         }
       });
+
       let search = ui.text_edit_singleline(path_search);
 
       if search.changed() {
