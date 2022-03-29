@@ -10,11 +10,10 @@ use std::thread;
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))] // if we add new fields, give them default values when deserializing old state
 pub struct App {
-  label: String,
-  path: String,
-  saved_path: std::path::PathBuf,
+  path_search: String,
+  current_path: std::path::PathBuf,
   pinned_dirs: Vec<std::path::PathBuf>,
-  previous_path: std::path::PathBuf,
+  last_path: std::path::PathBuf,
   #[cfg_attr(feature = "persistence", serde(skip))]
   filesystem: mft_ntfs::Filesystem,
   #[cfg_attr(feature = "persistence", serde(skip))]
@@ -41,11 +40,10 @@ impl Default for App {
       }
     }
     Self {
-      label: "Hello World!".to_owned(),
-      path: current_dir().unwrap().to_str().unwrap().to_owned(),
-      pinned_dirs: vec![],
-      saved_path: current_dir().unwrap(),
-      previous_path: current_dir().unwrap(),
+      path_search: current_dir().unwrap().to_str().unwrap().to_owned(),
+      pinned_dirs: Vec::new(),
+      current_path: current_dir().unwrap(),
+      last_path: current_dir().unwrap(),
       dir_entries,
       receiver: mpsc::channel().1,
       filesystem: mft_ntfs::Filesystem::new(OsString::from("D:\\"), 4096, 0),
@@ -83,7 +81,7 @@ impl Default for DirEntry {
 
 impl epi::App for App {
   fn name(&self) -> &str {
-    "eframe template"
+    "project themis"
   }
 
   /// Called once before the first frame.
@@ -116,9 +114,6 @@ impl epi::App for App {
       };
       sender.send(val.remove(0)).unwrap();
     });
-
-    // let drive_letters = Some(vec!['D']);
-    // *filesystem = mft_ntfs::main(drive_letters).unwrap().remove(0);
   }
 
   /// Called by the frame work to save state before shutdown.
@@ -132,11 +127,10 @@ impl epi::App for App {
   /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
   fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
     let Self {
-      label,
-      path,
+      path_search,
       pinned_dirs,
-      saved_path,
-      previous_path,
+      current_path,
+      last_path,
       dir_entries,
       filesystem,
       receiver,
@@ -161,17 +155,10 @@ impl epi::App for App {
     });
 
     egui::SidePanel::left("side_panel").show(ctx, |ui| {
-      ui.heading("Side Panel");
-
-      ui.horizontal(|ui| {
-        ui.label("Write something: ");
-        ui.text_edit_singleline(label);
-      });
-
-      ui.label("Pinned:");
+      ui.heading("Pinned:");
       for pin in pinned_dirs.clone() {
         if ui.button(pin.to_str().unwrap()).clicked() {
-          *saved_path = pin;
+          *current_path = pin;
         }
       }
 
@@ -188,43 +175,43 @@ impl epi::App for App {
     });
 
     egui::CentralPanel::default().show(ctx, |ui| {
-      ui.heading(path.clone());
-      let search = ui.text_edit_singleline(path);
+      ui.heading(path_search.clone());
+      let search = ui.text_edit_singleline(path_search);
 
       if search.changed() {
-        *saved_path = std::path::PathBuf::from(path.clone());
+        *current_path = std::path::PathBuf::from(path_search.clone());
       }
 
       ui.horizontal(|ui| {
         if ui.button("Go up").clicked() {
-          *saved_path = saved_path.parent().unwrap().to_path_buf();
+          *current_path = current_path.parent().unwrap().to_path_buf();
         }
         if ui.button("Go back").clicked() {
-          *saved_path = previous_path.to_path_buf();
+          *current_path = last_path.to_path_buf();
         }
-        if pinned_dirs.contains(saved_path) {
+        if pinned_dirs.contains(current_path) {
           if ui.button("Unpin directory").clicked() {
-            pinned_dirs.retain(|x| x != &saved_path.clone());
+            pinned_dirs.retain(|x| x != &current_path.clone());
           }
         } else if ui.button("Pin directory").clicked() {
-          pinned_dirs.push(saved_path.to_path_buf());
+          pinned_dirs.push(current_path.to_path_buf());
         }
       });
       if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter)
-        || saved_path != previous_path
+        || current_path != last_path
       {
-        let dir_path = std::path::Path::new(&saved_path);
+        let dir_path = std::path::Path::new(&current_path);
         if let Ok(dir) = read_dir(dir_path) {
           set_current_dir(dir_path).unwrap();
-          *path = dir_path.to_str().unwrap().to_owned();
-          *saved_path = dir_path.to_path_buf();
+          *path_search = dir_path.to_str().unwrap().to_owned();
+          *current_path = dir_path.to_path_buf();
           *dir_entries = Vec::new();
 
           for entry in dir {
             let entrypath = entry.unwrap().path();
             let entrypath2 = entrypath.clone().into_os_string().into_string().unwrap();
-            let folder_size = match filesystem.files.get(&entrypath2) {
-              Some(folder_size) => folder_size.real_size,
+            let dir_size = match filesystem.files.get(&entrypath2) {
+              Some(dir_size) => dir_size.real_size,
               None => 0,
             };
 
@@ -237,18 +224,18 @@ impl epi::App for App {
                 .unwrap()
                 .to_owned(),
               path: entrypath,
-              size: folder_size,
+              size: dir_size,
             });
           }
         }
-        *previous_path = saved_path.clone();
+        *last_path = current_path.clone();
       }
 
       for entry in dir_entries {
         let name = entry.name.clone();
         let path = entry.path.clone();
         let is_dir = entry.path.is_dir();
-        let folder_size = ByteSize(entry.size);
+        let dir_size = ByteSize(entry.size);
         let label = if is_dir {
           format!("{}/", name)
         } else {
@@ -258,13 +245,13 @@ impl epi::App for App {
         ui.horizontal(|ui| {
           if ui.button(&label).clicked() {
             if is_dir {
-              *saved_path = path.to_path_buf()
+              *current_path = path.to_path_buf()
             } else {
               open::that(path.to_str().unwrap()).unwrap();
             }
           }
           ui.label(label);
-          ui.label(folder_size.to_string());
+          ui.label(dir_size.to_string());
         });
       }
     });
