@@ -1,10 +1,10 @@
+use bytesize::ByteSize;
 use eframe::{egui, epi};
 use std::env::{current_dir, set_current_dir};
-use std::fs::read_dir;
 use std::ffi::OsString;
+use std::fs::read_dir;
 use std::sync::mpsc;
 use std::thread;
-use bytesize::ByteSize;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -13,7 +13,7 @@ pub struct App {
   label: String,
   path: String,
   saved_path: std::path::PathBuf,
-  favourites: Vec<std::path::PathBuf>,
+  pinned_dirs: Vec<std::path::PathBuf>,
   previous_path: std::path::PathBuf,
   #[cfg_attr(feature = "persistence", serde(skip))]
   filesystem: mft_ntfs::Filesystem,
@@ -28,35 +28,27 @@ impl Default for App {
     let path = current_dir().unwrap();
     if let Ok(dir) = read_dir(path) {
       for entry in dir {
-          let entry = entry.unwrap();
-          let metadata = entry.metadata().unwrap();
-          let name = entry.file_name().into_string().unwrap();
-          let size = metadata.len();
-          let dir_entry = DirEntry {
-            name,
-            path: entry.path(),
-            size,
-          };
-          dir_entries.push(dir_entry);
-        }
+        let entry = entry.unwrap();
+        let metadata = entry.metadata().unwrap();
+        let name = entry.file_name().into_string().unwrap();
+        let size = metadata.len();
+        let dir_entry = DirEntry {
+          name,
+          path: entry.path(),
+          size,
+        };
+        dir_entries.push(dir_entry);
       }
+    }
     Self {
       label: "Hello World!".to_owned(),
-      path: current_dir()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_owned(),
-      favourites: vec![],
+      path: current_dir().unwrap().to_str().unwrap().to_owned(),
+      pinned_dirs: vec![],
       saved_path: current_dir().unwrap(),
       previous_path: current_dir().unwrap(),
       dir_entries,
       receiver: mpsc::channel().1,
-      filesystem: mft_ntfs::Filesystem::new(
-        OsString::from("D:\\"),
-        4096,
-        0,
-      ),
+      filesystem: mft_ntfs::Filesystem::new(OsString::from("D:\\"), 4096, 0),
     }
   }
 }
@@ -65,7 +57,6 @@ impl Default for App {
 enum Error {
   // dont panic
 }
-
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 struct DirEntry {
@@ -77,12 +68,18 @@ impl Default for DirEntry {
   fn default() -> Self {
     Self {
       path: current_dir().unwrap(),
-      name: current_dir().unwrap().to_str().unwrap().split('/').last().unwrap().to_owned(),
-      size: 0
+      name: current_dir()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .split('/')
+        .last()
+        .unwrap()
+        .to_owned(),
+      size: 0,
     }
   }
 }
-
 
 impl epi::App for App {
   fn name(&self) -> &str {
@@ -118,7 +115,7 @@ impl epi::App for App {
         }
       };
       sender.send(val.remove(0)).unwrap();
-  });
+    });
 
     // let drive_letters = Some(vec!['D']);
     // *filesystem = mft_ntfs::main(drive_letters).unwrap().remove(0);
@@ -137,12 +134,12 @@ impl epi::App for App {
     let Self {
       label,
       path,
-      favourites,
+      pinned_dirs,
       saved_path,
       previous_path,
       dir_entries,
       filesystem,
-      receiver
+      receiver,
     } = self;
 
     if filesystem.entries.is_empty() {
@@ -171,10 +168,10 @@ impl epi::App for App {
         ui.text_edit_singleline(label);
       });
 
-      ui.label("Starred:");
-      for favourite in favourites.clone() {
-        if ui.button(favourite.to_str().unwrap()).clicked() {
-          *saved_path = favourite;
+      ui.label("Pinned:");
+      for pin in pinned_dirs.clone() {
+        if ui.button(pin.to_str().unwrap()).clicked() {
+          *saved_path = pin;
         }
       }
 
@@ -198,7 +195,6 @@ impl epi::App for App {
         *saved_path = std::path::PathBuf::from(path.clone());
       }
 
-      
       ui.horizontal(|ui| {
         if ui.button("Go up").clicked() {
           *saved_path = saved_path.parent().unwrap().to_path_buf();
@@ -206,15 +202,17 @@ impl epi::App for App {
         if ui.button("Go back").clicked() {
           *saved_path = previous_path.to_path_buf();
         }
-        if favourites.contains(saved_path) {
-          if ui.button("Remove from favourites").clicked() {
-            favourites.retain(|x| x != &saved_path.clone());
+        if pinned_dirs.contains(saved_path) {
+          if ui.button("Unpin directory").clicked() {
+            pinned_dirs.retain(|x| x != &saved_path.clone());
           }
-        } else if ui.button("Add to favourites").clicked() {
-            favourites.push(saved_path.to_path_buf());
+        } else if ui.button("Pin directory").clicked() {
+          pinned_dirs.push(saved_path.to_path_buf());
         }
       });
-      if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter) || saved_path != previous_path  {
+      if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter)
+        || saved_path != previous_path
+      {
         let dir_path = std::path::Path::new(&saved_path);
         if let Ok(dir) = read_dir(dir_path) {
           set_current_dir(dir_path).unwrap();
@@ -231,7 +229,13 @@ impl epi::App for App {
             };
 
             dir_entries.push(DirEntry {
-              name: entrypath.clone().file_name().unwrap().to_str().unwrap().to_owned(),
+              name: entrypath
+                .clone()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_owned(),
               path: entrypath,
               size: folder_size,
             });
@@ -255,8 +259,7 @@ impl epi::App for App {
           if ui.button(&label).clicked() {
             if is_dir {
               *saved_path = path.to_path_buf()
-            }
-            else {
+            } else {
               open::that(path.to_str().unwrap()).unwrap();
             }
           }
