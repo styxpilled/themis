@@ -1,7 +1,6 @@
 use bytesize::ByteSize;
 use eframe::{egui, epi};
 use std::env::{current_dir, set_current_dir};
-use std::ffi::OsString;
 use std::fs::read_dir;
 use std::sync::mpsc;
 use std::thread;
@@ -46,7 +45,7 @@ impl Default for App {
       last_path: current_dir().unwrap(),
       dir_entries,
       receiver: mpsc::channel().1,
-      filesystem: mft_ntfs::Filesystem::new(OsString::from("D:\\"), 4096, 0),
+      filesystem: mft_ntfs::Filesystem::new(),
     }
   }
 }
@@ -102,16 +101,16 @@ impl epi::App for App {
     self.receiver = new_receiver;
 
     thread::spawn(move || {
-      let drive_letters = Some(vec!['D']);
-      let val = mft_ntfs::main(drive_letters);
-      let mut val = match val {
+      // let drive_letters = Some(vec!['D']);
+      let val = mft_ntfs::main(None);
+      let val = match val {
         Ok(val) => val,
         Err(err) => {
           println!("{:?}", err);
           return;
         }
       };
-      sender.send(val.remove(0)).unwrap();
+      sender.send(val).unwrap();
     });
   }
 
@@ -135,7 +134,7 @@ impl epi::App for App {
       receiver,
     } = self;
 
-    if filesystem.entries.is_empty() {
+    if filesystem.files.is_empty() {
       let output = receiver.try_recv();
       if let Ok(output) = output {
         *filesystem = output;
