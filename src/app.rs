@@ -11,6 +11,7 @@ use std::thread;
 #[cfg_attr(feature = "persistence", serde(default))] // if we add new fields, give them default values when deserializing old state
 pub struct App {
   path_search: String,
+  rename_bar: String,
   current_path: std::path::PathBuf,
   pinned_dirs: Vec<std::path::PathBuf>,
   last_path: std::path::PathBuf,
@@ -42,6 +43,7 @@ impl Default for App {
     }
     Self {
       path_search: current_dir().unwrap().to_str().unwrap().to_owned(),
+      rename_bar: "".to_owned(),
       pinned_dirs: Vec::new(),
       current_path: current_dir().unwrap(),
       drive_list: Vec::new(),
@@ -131,6 +133,7 @@ impl epi::App for App {
   fn update(&mut self, ctx: &egui::Context, frame: &epi::Frame) {
     let Self {
       path_search,
+      rename_bar,
       pinned_dirs,
       current_path,
       drive_list,
@@ -165,7 +168,6 @@ impl epi::App for App {
           *current_path = pin;
         }
       }
-      
       ui.heading("Drives:");
       for drive in drive_list.clone() {
         if ui.button(drive.to_str().unwrap()).clicked() {
@@ -238,6 +240,12 @@ impl epi::App for App {
         } else if ui.button("Pin directory").clicked() {
           pinned_dirs.push(current_path.to_path_buf());
         }
+        let _new_dir_name = ui.text_edit_singleline(rename_bar);
+        if ui.button("New directory").clicked() {
+          let new_dir_path = current_path.join(rename_bar);
+          std::fs::create_dir(new_dir_path).unwrap();
+          // *current_path = new_dir_path;
+        }
       });
       ui.end_row();
       egui::ScrollArea::vertical().show(ui, |ui| {
@@ -308,7 +316,6 @@ impl epi::App for App {
             if entry.secondary_clicked() {
               ui.memory().toggle_popup(popup_id);
             }
-            
             ui.label(label);
             ui.label(dir_size.to_string());
             ui.end_row();
