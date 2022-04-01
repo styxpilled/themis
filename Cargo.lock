@@ -1128,7 +1128,7 @@ dependencies = [
 [[package]]
 name = "mft_ntfs"
 version = "0.1.0"
-source = "git+https://github.com/styxpilled/mft-ntfs#d0e42b28b9a30a089e9823efe2d02e2137b55ce4"
+source = "git+https://github.com/styxpilled/mft-ntfs#f1fb5ac4a3749ce5f39088f427cbb63847dd87b5"
 dependencies = [
  "indicatif",
  "winapi",
