@@ -1,6 +1,7 @@
 use bytesize::ByteSize;
 use eframe::{egui, epi};
 use std::env::{current_dir, set_current_dir};
+use std::ffi::OsString;
 use std::fs::read_dir;
 use std::sync::mpsc;
 use std::thread;
@@ -13,6 +14,7 @@ pub struct App {
   current_path: std::path::PathBuf,
   pinned_dirs: Vec<std::path::PathBuf>,
   last_path: std::path::PathBuf,
+  drive_list: Vec<OsString>,
   #[cfg_attr(feature = "persistence", serde(skip))]
   filesystem: mft_ntfs::Filesystem,
   #[cfg_attr(feature = "persistence", serde(skip))]
@@ -42,6 +44,7 @@ impl Default for App {
       path_search: current_dir().unwrap().to_str().unwrap().to_owned(),
       pinned_dirs: Vec::new(),
       current_path: current_dir().unwrap(),
+      drive_list: Vec::new(),
       last_path: current_dir().unwrap(),
       dir_entries,
       receiver: mpsc::channel().1,
@@ -96,6 +99,8 @@ impl epi::App for App {
       *self = epi::get_value(storage, epi::APP_KEY).unwrap_or_default()
     }
 
+    self.drive_list = mft_ntfs::get_drive_list();
+
     let (sender, new_receiver) = mpsc::channel();
 
     self.receiver = new_receiver;
@@ -128,6 +133,7 @@ impl epi::App for App {
       path_search,
       pinned_dirs,
       current_path,
+      drive_list,
       last_path,
       dir_entries,
       filesystem,
@@ -157,6 +163,13 @@ impl epi::App for App {
       for pin in pinned_dirs.clone() {
         if ui.button(pin.to_str().unwrap()).clicked() {
           *current_path = pin;
+        }
+      }
+      
+      ui.heading("Drives:");
+      for drive in drive_list.clone() {
+        if ui.button(drive.to_str().unwrap()).clicked() {
+          *current_path = std::path::PathBuf::from(drive);
         }
       }
 
