@@ -287,17 +287,30 @@ impl epi::App for App {
               name.to_owned()
             };
 
-            // ui.horizontal(|ui| {
-            if ui.button(&label).clicked() {
+            let entry = ui.button(&label);
+
+            if entry.clicked() {
               if is_dir {
                 *current_path = path.to_path_buf()
               } else {
                 open::that(path.to_str().unwrap()).unwrap();
               }
             }
+
+            let popup_id = ui.make_persistent_id(path.clone().to_string_lossy() + "popup");
+            egui::popup::popup_below_widget(ui, popup_id, &entry, |ui| {
+              ui.set_min_width(75.0);
+              ui.button("Open").clicked();
+              ui.button("Cut").clicked();
+              ui.button("Copy").clicked();
+              ui.button("Rename").clicked();
+            });
+            if entry.secondary_clicked() {
+              ui.memory().toggle_popup(popup_id);
+            }
+            
             ui.label(label);
             ui.label(dir_size.to_string());
-            // });
             ui.end_row();
           }
         });
