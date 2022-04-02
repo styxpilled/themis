@@ -1,10 +1,12 @@
 use bytesize::ByteSize;
 use eframe::{egui, epi};
+use notify::{Event, RecursiveMode, Watcher};
 use std::env::{current_dir, set_current_dir};
 use std::ffi::OsString;
 use std::fs::read_dir;
 use std::sync::mpsc;
 use std::thread;
+// use std::time::Duration;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -20,6 +22,8 @@ pub struct App {
   filesystem: mft_ntfs::Filesystem,
   #[cfg_attr(feature = "persistence", serde(skip))]
   receiver: mpsc::Receiver<mft_ntfs::Filesystem>,
+  #[cfg_attr(feature = "persistence", serde(skip))]
+  dwatcher: crossbeam_channel::Receiver<Event>,
   dir_entries: Vec<DirEntry>,
 }
 
@@ -50,6 +54,7 @@ impl Default for App {
       last_path: current_dir().unwrap(),
       dir_entries,
       receiver: mpsc::channel().1,
+      dwatcher: crossbeam_channel::unbounded().1,
       filesystem: mft_ntfs::Filesystem::new(),
     }
   }
@@ -103,12 +108,41 @@ impl epi::App for App {
 
     self.drive_list = mft_ntfs::get_drive_list();
 
-    let (sender, new_receiver) = mpsc::channel();
+    let path = self.current_path.clone();
+    let (tx, rx) = crossbeam_channel::unbounded();
 
-    self.receiver = new_receiver;
+    let (sender, receiver): (
+      crossbeam_channel::Sender<Event>,
+      crossbeam_channel::Receiver<Event>,
+    ) = crossbeam_channel::unbounded();
+
+    self.dwatcher = receiver;
 
     thread::spawn(move || {
-      // let drive_letters = Some(vec!['D']);
+      let mut watcher = notify::recommended_watcher(move |res| match res {
+        Ok(event) => {
+          tx.send(event).unwrap();
+        }
+        Err(e) => println!("watch error: {:?}", e),
+      })
+      .unwrap();
+      watcher
+        .watch(&path.clone(), RecursiveMode::Recursive)
+        .unwrap();
+      loop {
+        match rx.recv() {
+          Ok(event) => {
+            sender.send(event).unwrap();
+          }
+          Err(e) => println!("watch error: {:?}", e),
+        }
+      }
+    });
+
+    let (sender, receiver) = mpsc::channel();
+    self.receiver = receiver;
+
+    thread::spawn(move || {
       let val = mft_ntfs::main(None);
       let val = match val {
         Ok(val) => val,
@@ -141,12 +175,23 @@ impl epi::App for App {
       dir_entries,
       filesystem,
       receiver,
+      dwatcher,
     } = self;
 
     if filesystem.files.is_empty() {
       let output = receiver.try_recv();
       if let Ok(output) = output {
         *filesystem = output;
+      }
+    }
+
+    let recv = dwatcher.try_recv();
+    if let Ok(event) = recv {
+      // println!("Event {:?}", event);
+      if event.kind == notify::EventKind::Create(notify::event::CreateKind::Any)
+        || event.kind == notify::EventKind::Remove(notify::event::RemoveKind::Any)
+      {
+        println!("{:?}", event.paths);
       }
     }
 
