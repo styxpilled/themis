@@ -6,15 +6,14 @@ use std::fs::read_dir;
 
 pub fn main(ctx: &egui::Context, state: &mut Themis) {
   if state.filesystem.files.is_empty() {
-    let output = state.receiver.try_recv();
+    let output = state.fs_receiver.try_recv();
     if let Ok(output) = output {
       state.filesystem = output;
     }
   }
 
-  let recv = state.dwatcher.try_recv();
+  let recv = state.dir_watcher.try_recv();
   if let Ok(event) = recv {
-    // println!("Event {:?}", event);
     if event.kind == notify::EventKind::Create(notify::event::CreateKind::Any)
       || event.kind == notify::EventKind::Remove(notify::event::RemoveKind::Any)
     {
@@ -107,7 +106,6 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
       if ui.button("New directory").clicked() {
         let new_dir_path = state.current_path.join(state.rename_bar.clone());
         std::fs::create_dir(new_dir_path).unwrap();
-        // *current_path = new_dir_path;
       }
     });
     ui.end_row();

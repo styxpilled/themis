@@ -3,7 +3,6 @@ use notify::{Event, RecursiveMode, Watcher};
 use std::env::current_dir;
 use std::ffi::OsString;
 use std::fs::read_dir;
-use std::sync::mpsc;
 use std::thread;
 
 use crate::ui;
@@ -21,9 +20,9 @@ pub struct Themis {
   #[cfg_attr(feature = "persistence", serde(skip))]
   pub filesystem: mft_ntfs::Filesystem,
   #[cfg_attr(feature = "persistence", serde(skip))]
-  pub receiver: mpsc::Receiver<mft_ntfs::Filesystem>,
+  pub fs_receiver: crossbeam_channel::Receiver<mft_ntfs::Filesystem>,
   #[cfg_attr(feature = "persistence", serde(skip))]
-  pub dwatcher: crossbeam_channel::Receiver<Event>,
+  pub dir_watcher: crossbeam_channel::Receiver<Event>,
   pub dir_entries: Vec<DirEntry>,
 }
 
@@ -53,8 +52,8 @@ impl Default for Themis {
       drive_list: Vec::new(),
       last_path: current_dir().unwrap(),
       dir_entries,
-      receiver: mpsc::channel().1,
-      dwatcher: crossbeam_channel::unbounded().1,
+      fs_receiver: crossbeam_channel::unbounded().1,
+      dir_watcher: crossbeam_channel::unbounded().1,
       filesystem: mft_ntfs::Filesystem::new(),
     }
   }
@@ -111,12 +110,9 @@ impl epi::App for Themis {
     let path = self.current_path.clone();
     let (tx, rx) = crossbeam_channel::unbounded();
 
-    let (sender, receiver): (
-      crossbeam_channel::Sender<Event>,
-      crossbeam_channel::Receiver<Event>,
-    ) = crossbeam_channel::unbounded();
+    let (sender, receiver) = crossbeam_channel::unbounded();
 
-    self.dwatcher = receiver;
+    self.dir_watcher = receiver;
 
     thread::spawn(move || {
       let mut watcher = notify::recommended_watcher(move |res| match res {
@@ -127,7 +123,7 @@ impl epi::App for Themis {
       })
       .unwrap();
       watcher
-        .watch(&path.clone(), RecursiveMode::Recursive)
+        .watch(&path, RecursiveMode::Recursive)
         .unwrap();
       loop {
         match rx.recv() {
@@ -139,8 +135,8 @@ impl epi::App for Themis {
       }
     });
 
-    let (sender, receiver) = mpsc::channel();
-    self.receiver = receiver;
+    let (sender, receiver) = crossbeam_channel::unbounded();
+    self.fs_receiver = receiver;
 
     thread::spawn(move || {
       let val = mft_ntfs::main(None);
