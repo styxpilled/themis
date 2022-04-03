@@ -1,4 +1,4 @@
-use crate::app::{DirEntry, Themis};
+use crate::app::{DirEntry, DirWatcherEvent, Themis};
 use bytesize::ByteSize;
 use eframe::egui;
 use std::env::set_current_dir;
@@ -12,12 +12,13 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
     }
   }
 
-  let recv = state.dir_watcher.try_recv();
+  let recv = state.dir_watcher.dir_watcher.try_recv();
   if let Ok(event) = recv {
     if event.kind == notify::EventKind::Create(notify::event::CreateKind::Any)
       || event.kind == notify::EventKind::Remove(notify::event::RemoveKind::Any)
     {
-      println!("{:?}", event.paths);
+      // println!("{:?}", event.paths);
+      update_current_dir(state);
     }
   }
 
@@ -166,7 +167,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
   }
 }
 
-fn update_current_dir(state: &mut Themis) {
+pub fn update_current_dir(state: &mut Themis) {
   let dir_path = std::path::Path::new(&state.current_path);
   if let Ok(dir) = read_dir(dir_path) {
     set_current_dir(dir_path).unwrap();
@@ -195,5 +196,17 @@ fn update_current_dir(state: &mut Themis) {
       });
     }
   }
-  state.last_path = state.current_path.clone();
+  if state.last_path != state.current_path {
+    state
+      .dir_watcher
+      .watcher_updater
+      .send((DirWatcherEvent::Remove, state.last_path.clone()))
+      .unwrap();
+    state
+      .dir_watcher
+      .watcher_updater
+      .send((DirWatcherEvent::Add, state.current_path.clone()))
+      .unwrap();
+    state.last_path = state.current_path.clone();
+  }
 }

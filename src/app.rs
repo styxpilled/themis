@@ -3,6 +3,7 @@ use notify::{Event, RecursiveMode, Watcher};
 use std::env::current_dir;
 use std::ffi::OsString;
 use std::fs::read_dir;
+use std::path::PathBuf;
 use std::thread;
 
 use crate::ui;
@@ -22,7 +23,7 @@ pub struct Themis {
   #[cfg_attr(feature = "persistence", serde(skip))]
   pub fs_receiver: crossbeam_channel::Receiver<mft_ntfs::Filesystem>,
   #[cfg_attr(feature = "persistence", serde(skip))]
-  pub dir_watcher: crossbeam_channel::Receiver<Event>,
+  pub dir_watcher: DirWatcher,
   pub dir_entries: Vec<DirEntry>,
 }
 
@@ -53,7 +54,7 @@ impl Default for Themis {
       last_path: current_dir().unwrap(),
       dir_entries,
       fs_receiver: crossbeam_channel::unbounded().1,
-      dir_watcher: crossbeam_channel::unbounded().1,
+      dir_watcher: DirWatcher::default(),
       filesystem: mft_ntfs::Filesystem::new(),
     }
   }
@@ -87,6 +88,23 @@ impl Default for DirEntry {
   }
 }
 
+pub struct DirWatcher {
+  pub dir_watcher: crossbeam_channel::Receiver<Event>,
+  pub watcher_updater: crossbeam_channel::Sender<(DirWatcherEvent, PathBuf)>,
+}
+impl Default for DirWatcher {
+  fn default() -> Self {
+    Self {
+      dir_watcher: crossbeam_channel::unbounded().1,
+      watcher_updater: crossbeam_channel::unbounded().0,
+    }
+  }
+}
+pub enum DirWatcherEvent {
+  Add,
+  Remove,
+}
+
 impl epi::App for Themis {
   fn name(&self) -> &str {
     "themis"
@@ -107,12 +125,17 @@ impl epi::App for Themis {
 
     self.drive_list = mft_ntfs::get_drive_list();
 
-    let path = self.current_path.clone();
     let (tx, rx) = crossbeam_channel::unbounded();
 
     let (sender, receiver) = crossbeam_channel::unbounded();
 
-    self.dir_watcher = receiver;
+    self.dir_watcher.dir_watcher = receiver;
+
+    let (watcher_updater, watcher_receiver) = crossbeam_channel::unbounded();
+
+    self.dir_watcher.watcher_updater = watcher_updater;
+
+    let path = self.current_path.clone();
 
     thread::spawn(move || {
       let mut watcher = notify::recommended_watcher(move |res| match res {
@@ -124,11 +147,24 @@ impl epi::App for Themis {
       .unwrap();
       watcher.watch(&path, RecursiveMode::Recursive).unwrap();
       loop {
-        match rx.recv() {
+        match rx.try_recv() {
           Ok(event) => {
             sender.send(event).unwrap();
           }
-          Err(e) => println!("watch error: {:?}", e),
+          Err(_) => {}
+        }
+        match watcher_receiver.try_recv() {
+          Ok(event) => {
+            match event.0 {
+              DirWatcherEvent::Add => {
+                watcher.watch(&event.1, RecursiveMode::Recursive).unwrap();
+              }
+              DirWatcherEvent::Remove => {
+                watcher.unwatch(&event.1).unwrap();
+              }
+            }
+          }
+          Err(_) => {}
         }
       }
     });
