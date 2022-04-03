@@ -11,9 +11,9 @@ bytesize = {version = "1.1.0", features = ["serde"]}
 # filetime = "0.2.15" # shows file timestamps
 serde = { version = "1", features = ["derive"], optional = true }
 mft_ntfs = { git = "https://github.com/styxpilled/mft-ntfs", features = ["progress"] }
-open = "2.1.1"
-crossbeam-channel = "0.4.0"
-notify = "5.0.0-pre.14"
+open = "2.1.1" # for opening files
+crossbeam-channel = "0.5.4" # Thread channels
+notify = "5.0.0-pre.14" # Watching directories for changes
 
 [features]
 default = ["persistence"]
