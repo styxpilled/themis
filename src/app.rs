@@ -122,9 +122,7 @@ impl epi::App for Themis {
         Err(e) => println!("watch error: {:?}", e),
       })
       .unwrap();
-      watcher
-        .watch(&path, RecursiveMode::Recursive)
-        .unwrap();
+      watcher.watch(&path, RecursiveMode::Recursive).unwrap();
       loop {
         match rx.recv() {
           Ok(event) => {
