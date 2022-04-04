@@ -103,12 +103,18 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
       } else if ui.button("Pin directory").clicked() {
         state.pinned_dirs.push(state.current_path.to_path_buf());
       }
-      let _new_dir_name = ui.text_edit_singleline(&mut state.rename_bar);
       if ui.button("New directory").clicked() {
         let new_dir_path = state.current_path.join(state.rename_bar.clone());
         std::fs::create_dir(new_dir_path).unwrap();
       }
+      if ui.button("New file").clicked() {
+        let new_file_path = state.current_path.join(state.rename_bar.clone());
+        std::fs::File::create(new_file_path).unwrap();
+      }
     });
+    ui.end_row();
+    ui.text_edit_singleline(&mut state.rename_bar);
+
     ui.end_row();
     egui::ScrollArea::vertical().show(ui, |ui| {
       egui::Grid::new("central_grid").show(ui, |ui| {
