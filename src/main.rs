@@ -4,6 +4,7 @@
 
 pub mod app;
 pub mod ui;
+pub mod misc;
 use app::Themis;
 
 // When compiling natively:

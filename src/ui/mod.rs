@@ -51,6 +51,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
   egui::CentralPanel::default().show(ctx, |ui| {
     // * Breadcrumb navigation
     ui.horizontal(|ui| {
+      ui.label("🥺");
       ui.spacing_mut().item_spacing.x = 0.0;
       // TODO: maybe use a PathBuf instead of a String?
       // there are some problems with using a PathBuf

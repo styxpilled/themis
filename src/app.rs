@@ -6,6 +6,7 @@ use std::fs::read_dir;
 use std::path::PathBuf;
 use std::thread;
 
+use crate::misc::fonts::setup_custom_fonts;
 use crate::ui;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -114,10 +115,11 @@ impl epi::App for Themis {
   /// Called once before the first frame.
   fn setup(
     &mut self,
-    _ctx: &egui::Context,
+    ctx: &egui::Context,
     _frame: &epi::Frame,
     storage: Option<&dyn epi::Storage>,
   ) {
+    setup_custom_fonts(&ctx);
     // Load previous app state (if any).
     // Note that you must enable the `persistence` feature for this to work.
     #[cfg(feature = "persistence")]
@@ -156,16 +158,14 @@ impl epi::App for Themis {
           Err(_) => {}
         }
         match watcher_receiver.try_recv() {
-          Ok(event) => {
-            match event.0 {
-              DirWatcherEvent::Add => {
-                watcher.watch(&event.1, RecursiveMode::Recursive).unwrap();
-              }
-              DirWatcherEvent::Remove => {
-                watcher.unwatch(&event.1).unwrap();
-              }
+          Ok(event) => match event.0 {
+            DirWatcherEvent::Add => {
+              watcher.watch(&event.1, RecursiveMode::Recursive).unwrap();
             }
-          }
+            DirWatcherEvent::Remove => {
+              watcher.unwatch(&event.1).unwrap();
+            }
+          },
           Err(_) => {}
         }
       }
