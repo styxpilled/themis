@@ -114,7 +114,6 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
     });
     ui.end_row();
     ui.text_edit_singleline(&mut state.rename_bar);
-
     ui.end_row();
     egui::ScrollArea::vertical().show(ui, |ui| {
       egui::Grid::new("central_grid").show(ui, |ui| {
@@ -134,31 +133,34 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
           } else {
             name.to_owned()
           };
+          let man_entry = ui.horizontal(|ui| {
+            let entry = ui.button(&label);
 
-          let entry = ui.button(&label);
-
-          if entry.clicked() {
-            if is_dir {
-              state.current_path = path.to_path_buf()
-            } else {
-              open::that(path.to_str().unwrap()).unwrap();
+            if entry.clicked() {
+              if is_dir {
+                state.current_path = path.to_path_buf()
+              } else {
+                open::that(path.to_str().unwrap()).unwrap()
+              }
             }
-          }
-
-          let popup_id = ui.make_persistent_id(path.clone().to_string_lossy() + "popup");
-          egui::popup::popup_below_widget(ui, popup_id, &entry, |ui| {
-            ui.set_min_width(75.0);
-            ui.button("Open").clicked();
-            ui.button("Cut").clicked();
-            ui.button("Copy").clicked();
-            ui.button("Rename").clicked();
+            ui.label(label);
+            ui.label(dir_size.to_string());
           });
-          if entry.secondary_clicked() {
-            ui.memory().toggle_popup(popup_id);
+          if man_entry.response.hovered() {
+            state.selected_path = path.to_path_buf()
           }
-          ui.label(label);
-          ui.label(dir_size.to_string());
+          // man_entry.response.context_menu(|ui| {
+          //   if ui.button("Clear..").clicked() {
+          //     println!("clear");
+          //     ui.close_menu();
+          //   }
+          // });
           ui.end_row();
+        }
+      }).response
+      .context_menu(|ui| {
+        if ui.button("Print Name").clicked() {
+          println!("{:?}", state.selected_path);
         }
       });
     });

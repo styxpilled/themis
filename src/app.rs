@@ -17,6 +17,7 @@ pub struct Themis {
   pub current_path: std::path::PathBuf,
   pub pinned_dirs: Vec<std::path::PathBuf>,
   pub last_path: std::path::PathBuf,
+  pub selected_path: std::path::PathBuf,
   pub drive_list: Vec<OsString>,
   #[cfg_attr(feature = "persistence", serde(skip))]
   pub filesystem: mft_ntfs::Filesystem,
@@ -52,6 +53,7 @@ impl Default for Themis {
       current_path: current_dir().unwrap(),
       drive_list: Vec::new(),
       last_path: current_dir().unwrap(),
+      selected_path: current_dir().unwrap(),
       dir_entries,
       fs_receiver: crossbeam_channel::unbounded().1,
       dir_watcher: DirWatcher::default(),
