@@ -36,13 +36,13 @@ impl Default for Themis {
     if let Ok(dir) = read_dir(path) {
       for entry in dir {
         let entry = entry.unwrap();
-        let metadata = entry.metadata().unwrap();
-        let name = entry.file_name().into_string().unwrap();
-        let size = metadata.len();
+        let path = entry.path();
         let dir_entry = DirEntry {
-          name,
-          path: entry.path(),
-          size,
+          name: entry.file_name().into_string().unwrap(),
+          path: path.clone(),
+          size: entry.metadata().unwrap().len(),
+          is_dir: path.is_dir(),
+          is_empty: path.is_dir() && path.read_dir().unwrap().count() == 0,
         };
         dir_entries.push(dir_entry);
       }
@@ -73,6 +73,8 @@ pub struct DirEntry {
   pub path: std::path::PathBuf,
   pub name: String,
   pub size: u64,
+  pub is_dir: bool,
+  pub is_empty: bool,
 }
 impl Default for DirEntry {
   fn default() -> Self {
@@ -87,6 +89,8 @@ impl Default for DirEntry {
         .unwrap()
         .to_owned(),
       size: 0,
+      is_dir: false,
+      is_empty: false,
     }
   }
 }

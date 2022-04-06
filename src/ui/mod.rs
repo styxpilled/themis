@@ -138,7 +138,11 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
                 name.to_owned()
               };
               let formatted = if is_dir {
-                format!("🗀 {} ({})", label, dir_size)
+                if entry.is_empty {
+                  format!("🗁 {} ({})", label, dir_size)
+                } else {
+                  format!("🗀 {} ({})", label, dir_size)
+                }
               } else {
                 format!("🗋 {} ({})", label, dir_size)
               };
@@ -191,8 +195,11 @@ pub fn update_current_dir(state: &mut Themis) {
 
     for entry in dir {
       let entrypath = entry.unwrap().path();
-      let entrypath2 = entrypath.clone().into_os_string().into_string().unwrap();
-      let dir_size = match state.filesystem.files.get(&entrypath2) {
+      let dir_size = match state
+        .filesystem
+        .files
+        .get(&entrypath.clone().into_os_string().into_string().unwrap())
+      {
         Some(dir_size) => dir_size.real_size,
         None => 0,
       };
@@ -205,8 +212,10 @@ pub fn update_current_dir(state: &mut Themis) {
           .to_str()
           .unwrap()
           .to_owned(),
-        path: entrypath,
+        path: entrypath.clone(),
         size: dir_size,
+        is_dir: entrypath.clone().is_dir(),
+        is_empty: entrypath.is_dir() && entrypath.read_dir().unwrap().count() == 0,
       });
     }
   }
