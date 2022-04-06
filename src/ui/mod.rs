@@ -117,53 +117,76 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
     ui.text_edit_singleline(&mut state.rename_bar);
     ui.end_row();
     egui::ScrollArea::vertical().show(ui, |ui| {
-      egui::Grid::new("central_grid").show(ui, |ui| {
-        if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter)
-          || state.current_path != state.last_path
-        {
-          update_current_dir(state);
-        }
-
-        for entry in state.dir_entries.clone() {
-          let name = entry.name.clone();
-          let path = entry.path.clone();
-          let is_dir = entry.path.is_dir();
-          let dir_size = ByteSize(entry.size);
-          let label = if is_dir {
-            format!("{}/", name)
-          } else {
-            name.to_owned()
-          };
-          let man_entry = ui.horizontal(|ui| {
-            let entry = ui.button(&label);
-
-            if entry.clicked() {
-              if is_dir {
-                state.current_path = path.to_path_buf()
-              } else {
-                open::that(path.to_str().unwrap()).unwrap()
-              }
-            }
-            ui.label(label);
-            ui.label(dir_size.to_string());
-          });
-          if man_entry.response.hovered() {
-            state.selected_path = path.to_path_buf()
+      egui::Grid::new("central_grid")
+        .show(ui, |ui| {
+          if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter)
+            || state.current_path != state.last_path
+          {
+            update_current_dir(state);
           }
-          // man_entry.response.context_menu(|ui| {
-          //   if ui.button("Clear..").clicked() {
-          //     println!("clear");
-          //     ui.close_menu();
-          //   }
-          // });
+
+          // let response = ui.horizontal(|ui| {
+          //   ui.label("hello");
+          // }).response;
+          // let response = response.interact(egui::Sense::click());
+          // let response = response.interact(egui::Sense::click_and_drag());
+          // if response.drag_started() {
+          // println!("drag started");
+          // }
+          // if response.clicked() {
+          //   println!("yay")
+          // }
+          // if response.double_clicked() {
+          //   println!("double clicked")
+          // }
+          // if response.hovered() {
+          //   println!("hovered")
+          // }
           ui.end_row();
-        }
-      }).response
-      .context_menu(|ui| {
-        if ui.button("Print Name").clicked() {
-          println!("{:?}", state.selected_path);
-        }
-      });
+
+          for entry in state.dir_entries.clone() {
+            ui.horizontal(|ui| {
+              let name = entry.name.clone();
+              let path = entry.path.clone();
+              let is_dir = entry.path.is_dir();
+              let dir_size = ByteSize(entry.size);
+              let label = if is_dir {
+                format!("{}/", name)
+              } else {
+                name.to_owned()
+              };
+              let formatted = format!("{} ({})", label, dir_size);
+              let thing = ui.add(egui::Label::new(formatted).sense(egui::Sense::click()));
+              if thing.double_clicked() {
+                if is_dir {
+                  state.current_path = path.to_path_buf()
+                } else {
+                  open::that(path.to_str().unwrap()).unwrap()
+                }
+              }
+              if thing.hovered() {
+                state.selected_path = path.to_path_buf();
+              }
+            });
+            // let response = test.response.interact(egui::Sense::click());
+            // if response.clicked() {
+            //   println!("clicked big ooga booga");
+            // }
+
+            ui.end_row();
+            ui.add(egui::Separator::spacing(
+              egui::Separator::horizontal(egui::Separator::default()),
+              0.0,
+            ));
+            ui.end_row();
+          }
+        })
+        .response
+        .context_menu(|ui| {
+          if ui.button("Print Name").clicked() {
+            println!("{:?}", state.selected_path);
+          }
+        });
     });
   });
   if false {
