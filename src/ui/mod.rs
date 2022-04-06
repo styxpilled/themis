@@ -123,24 +123,6 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
         {
           update_current_dir(state);
         }
-
-        // let response = ui.horizontal(|ui| {
-        //   ui.label("hello");
-        // }).response;
-        // let response = response.interact(egui::Sense::click());
-        // let response = response.interact(egui::Sense::click_and_drag());
-        // if response.drag_started() {
-        // println!("drag started");
-        // }
-        // if response.clicked() {
-        //   println!("yay")
-        // }
-        // if response.double_clicked() {
-        //   println!("double clicked")
-        // }
-        // if response.hovered() {
-        //   println!("hovered")
-        // }
         ui.end_row();
         ui.spacing_mut().item_spacing.y = 1.5;
         ui.vertical(|ui| {
@@ -172,10 +154,6 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
                 state.selected_path = path.to_path_buf();
               }
             });
-            // let response = test.response.interact(egui::Sense::click());
-            // if response.clicked() {
-            //   println!("clicked big ooga booga");
-            // }
             ui.end_row();
             ui.add(egui::Separator::spacing(
               egui::Separator::horizontal(egui::Separator::default()),
