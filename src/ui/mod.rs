@@ -117,34 +117,33 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
     ui.text_edit_singleline(&mut state.rename_bar);
     ui.end_row();
     egui::ScrollArea::vertical().show(ui, |ui| {
-      egui::Grid::new("central_grid")
-        .show(ui, |ui| {
-          if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter)
-            || state.current_path != state.last_path
-          {
-            update_current_dir(state);
-          }
+      egui::Grid::new("central_grid").show(ui, |ui| {
+        if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter)
+          || state.current_path != state.last_path
+        {
+          update_current_dir(state);
+        }
 
-          // let response = ui.horizontal(|ui| {
-          //   ui.label("hello");
-          // }).response;
-          // let response = response.interact(egui::Sense::click());
-          // let response = response.interact(egui::Sense::click_and_drag());
-          // if response.drag_started() {
-          // println!("drag started");
-          // }
-          // if response.clicked() {
-          //   println!("yay")
-          // }
-          // if response.double_clicked() {
-          //   println!("double clicked")
-          // }
-          // if response.hovered() {
-          //   println!("hovered")
-          // }
-          ui.end_row();
-          ui.spacing_mut().item_spacing.y = 1.5;
-          ui.vertical(|ui|{
+        // let response = ui.horizontal(|ui| {
+        //   ui.label("hello");
+        // }).response;
+        // let response = response.interact(egui::Sense::click());
+        // let response = response.interact(egui::Sense::click_and_drag());
+        // if response.drag_started() {
+        // println!("drag started");
+        // }
+        // if response.clicked() {
+        //   println!("yay")
+        // }
+        // if response.double_clicked() {
+        //   println!("double clicked")
+        // }
+        // if response.hovered() {
+        //   println!("hovered")
+        // }
+        ui.end_row();
+        ui.spacing_mut().item_spacing.y = 1.5;
+        ui.vertical(|ui| {
           for entry in state.dir_entries.clone() {
             ui.horizontal(|ui| {
               let name = entry.name.clone();
@@ -156,7 +155,11 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
               } else {
                 name.to_owned()
               };
-              let formatted = format!("{} ({})", label, dir_size);
+              let formatted = if is_dir {
+                format!("🗀 {} ({})", label, dir_size)
+              } else {
+                format!("🗋 {} ({})", label, dir_size)
+              };
               let thing = ui.add(egui::Label::new(formatted).sense(egui::Sense::click()));
               if thing.double_clicked() {
                 if is_dir {
