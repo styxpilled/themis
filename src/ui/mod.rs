@@ -143,7 +143,8 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
           //   println!("hovered")
           // }
           ui.end_row();
-
+          ui.spacing_mut().item_spacing.y = 1.5;
+          ui.vertical(|ui|{
           for entry in state.dir_entries.clone() {
             ui.horizontal(|ui| {
               let name = entry.name.clone();
@@ -172,7 +173,6 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
             // if response.clicked() {
             //   println!("clicked big ooga booga");
             // }
-
             ui.end_row();
             ui.add(egui::Separator::spacing(
               egui::Separator::horizontal(egui::Separator::default()),
@@ -187,6 +187,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
             println!("{:?}", state.selected_path);
           }
         });
+      });
     });
   });
   if false {
