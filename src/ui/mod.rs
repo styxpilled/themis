@@ -130,16 +130,8 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
         }
         ui.end_row();
         ui.spacing_mut().item_spacing.y = 1.5;
-        ui.vertical(|ui| {
           // * Current directory file menu
           file_menu(state, ui);
-        })
-        .response
-        .context_menu(|ui| {
-          if ui.button("Print Name").clicked() {
-            println!("{:?}", state.selected_path);
-          }
-        });
       });
     });
   });
