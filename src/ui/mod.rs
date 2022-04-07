@@ -157,6 +157,13 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
               if thing.hovered() {
                 state.selected_path = path.to_path_buf();
               }
+              thing.context_menu(|ui| {
+                // ui.spacing_mut().item_spacing.y = 6.0;
+                if ui.button("Print Name").clicked() {
+                  println!("{:?}", state.selected_path);
+                }
+                // ui.spacing_mut().item_spacing.y = 1.5;
+              })
             });
             ui.end_row();
             ui.add(egui::Separator::spacing(
