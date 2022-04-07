@@ -14,7 +14,8 @@ use crate::ui;
 #[cfg_attr(feature = "persistence", serde(default))] // if we add new fields, give them default values when deserializing old state
 pub struct Themis {
   pub path_search: String,
-  pub rename_bar: String,
+  #[cfg_attr(feature = "persistence", serde(skip))]
+  pub rename: Rename,
   pub current_path: std::path::PathBuf,
   pub pinned_dirs: Vec<std::path::PathBuf>,
   pub last_path: std::path::PathBuf,
@@ -49,7 +50,7 @@ impl Default for Themis {
     }
     Self {
       path_search: current_dir().unwrap().to_str().unwrap().to_owned(),
-      rename_bar: "".to_owned(),
+      rename: Rename::default(),
       pinned_dirs: Vec::new(),
       current_path: current_dir().unwrap(),
       drive_list: Vec::new(),
@@ -66,6 +67,20 @@ impl Default for Themis {
 #[derive(Debug)]
 enum Error {
   // dont panic
+}
+
+pub struct Rename {
+  pub value: String,
+  pub target: Option<std::path::PathBuf>,
+}
+
+impl Default for Rename {
+  fn default() -> Self {
+    Self {
+      value: "".to_owned(),
+      target: None,
+    }
+  }
 }
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]

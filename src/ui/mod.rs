@@ -109,17 +109,17 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
       } else if ui.button("Pin directory").clicked() {
         state.pinned_dirs.push(state.current_path.to_path_buf());
       }
-      if ui.button("New directory").clicked() {
-        let new_dir_path = state.current_path.join(state.rename_bar.clone());
-        std::fs::create_dir(new_dir_path).unwrap();
-      }
-      if ui.button("New file").clicked() {
-        let new_file_path = state.current_path.join(state.rename_bar.clone());
-        std::fs::File::create(new_file_path).unwrap();
-      }
+      // if ui.button("New directory").clicked() {
+      //   let new_dir_path = state.current_path.join(state.rename_bar.clone());
+      //   std::fs::create_dir(new_dir_path).unwrap();
+      // }
+      // if ui.button("New file").clicked() {
+      //   let new_file_path = state.current_path.join(state.rename_bar.clone());
+      //   std::fs::File::create(new_file_path).unwrap();
+      // }
     });
-    ui.end_row();
-    ui.text_edit_singleline(&mut state.rename_bar);
+    // ui.end_row();
+    // ui.text_edit_singleline(&mut state.rename_bar);
     ui.end_row();
     egui::ScrollArea::vertical().show(ui, |ui| {
       egui::Grid::new("central_grid").show(ui, |ui| {
@@ -151,24 +151,52 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
               } else {
                 format!("🗋 {} ({})", label, dir_size)
               };
-              let thing = ui.add(egui::Label::new(formatted).sense(egui::Sense::click()));
-              if thing.double_clicked() {
-                if is_dir {
-                  state.current_path = path.to_path_buf()
+              if state.rename.target.clone().unwrap_or_default() != path {
+                let thing = ui.add(egui::Label::new(formatted).sense(egui::Sense::click()));
+                if thing.double_clicked() {
+                  if is_dir {
+                    state.current_path = path.to_path_buf()
+                  } else {
+                    open::that(path.to_str().unwrap()).unwrap()
+                  }
+                }
+                if thing.hovered() {
+                  state.selected_path = path.to_path_buf();
+                }
+                thing.context_menu(|ui| {
+                  // ui.spacing_mut().item_spacing.y = 6.0;
+                  if ui.button("Print Name").clicked() {
+                    println!("{:?}", state.selected_path);
+                  }
+                  if ui.button("Rename").clicked() {
+                    state.rename.target = Some(state.selected_path.clone());
+                    ui.close_menu();
+                  }
+                  // ui.spacing_mut().item_spacing.y = 1.5;
+                });
+              } else {
+                let rename_bar = ui.text_edit_singleline(&mut state.rename.value);
+                if rename_bar.lost_focus() {
+                  if state.rename.value != "" {
+                    let new_name = state.rename.value.clone();
+                    let new_path = state
+                      .rename
+                      .target
+                      .clone()
+                      .unwrap()
+                      .with_file_name(new_name);
+                    std::fs::rename(state.rename.target.clone().unwrap(), new_path).unwrap();
+                    update_current_dir(state);
+                  }
+                  state.rename.target = None;
+                  state.rename.value = String::new();
                 } else {
-                  open::that(path.to_str().unwrap()).unwrap()
+                  rename_bar.request_focus();
+                }
+                if rename_bar.gained_focus() {
+                  state.rename.value = name.to_owned();
                 }
               }
-              if thing.hovered() {
-                state.selected_path = path.to_path_buf();
-              }
-              thing.context_menu(|ui| {
-                // ui.spacing_mut().item_spacing.y = 6.0;
-                if ui.button("Print Name").clicked() {
-                  println!("{:?}", state.selected_path);
-                }
-                // ui.spacing_mut().item_spacing.y = 1.5;
-              })
             });
             ui.end_row();
             ui.add(egui::Separator::spacing(
