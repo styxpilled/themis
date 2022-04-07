@@ -52,32 +52,37 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
     // * Breadcrumb navigation
     ui.horizontal(|ui| {
       ui.label("🥺");
-      ui.spacing_mut().item_spacing.x = 0.0;
-      // TODO: maybe use a PathBuf instead of a String?
-      // there are some problems with using a PathBuf
-      for dir in state.path_search.clone().split('\\') {
-        ui.label(">");
-        let mut path = state.path_search.clone();
-        path.truncate(path.find(dir).unwrap() + dir.len());
-        let popup_id = ui.make_persistent_id(path.clone());
-        let dir = ui.button(dir);
-        if dir.clicked() {
-          ui.memory().toggle_popup(popup_id);
-        }
-        egui::popup::popup_below_widget(ui, popup_id, &dir, |ui| {
-          ui.set_min_width(75.0);
-          if let Ok(popup_dir) = read_dir(path.clone()) {
-            for dir in popup_dir {
-              let dir = dir.unwrap();
-              let dir_path = dir.path();
-              if dir.metadata().unwrap().is_dir()
-                && ui.button(dir.file_name().to_str().unwrap()).clicked()
-              {
-                state.current_path = dir_path;
+      ui.spacing_mut().item_spacing.x = 1.5;
+      let test = std::path::PathBuf::from(state.path_search.clone());
+      let mut searchable_path = std::path::PathBuf::default();
+      for (index, path) in test.iter().enumerate() {
+        if index != 1 || path.to_str().unwrap() != "\\" {
+          searchable_path.push(path);
+          if index == 0 {
+            searchable_path.push("\\");
+          }
+          ui.label("▶");
+          let dir =
+            ui.add(egui::Label::new(path.to_str().unwrap_or_default()).sense(egui::Sense::click()));
+          let popup_id = ui.make_persistent_id(searchable_path.clone());
+          if dir.clicked() {
+            ui.memory().toggle_popup(popup_id);
+          }
+          egui::popup::popup_below_widget(ui, popup_id, &dir, |ui| {
+            ui.set_width(150.0);
+            if let Ok(popup_dir) = read_dir(searchable_path.clone()) {
+              for dir in popup_dir {
+                let dir = dir.unwrap();
+                let dir_path = dir.path();
+                if dir.metadata().unwrap().is_dir()
+                  && ui.button(dir.file_name().to_str().unwrap()).clicked()
+                {
+                  state.current_path = dir_path;
+                }
               }
             }
-          }
-        });
+          });
+        }
       }
     });
     ui.end_row();
