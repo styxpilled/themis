@@ -25,6 +25,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
   }
 
   egui::SidePanel::left("side_panel").show(ctx, |ui| {
+    ui.heading("( ._.)");
     ui.heading("Pinned:");
     for pin in state.pinned_dirs.clone() {
       if ui.button(pin.to_str().unwrap()).clicked() {
@@ -55,7 +56,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
     ui.horizontal(|ui| {
       ui.label("🥺");
       ui.spacing_mut().item_spacing.x = 1.5;
-      let test = std::path::PathBuf::from(state.path_search.clone());
+      let test = std::path::PathBuf::from(state.navigation.clone());
       let mut searchable_path = std::path::PathBuf::default();
       for (index, path) in test.iter().enumerate() {
         if index != 1 || path.to_str().unwrap() != "\\" {
@@ -88,11 +89,22 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
       }
     });
     ui.end_row();
-    let search = ui.text_edit_singleline(&mut state.path_search);
+    ui.horizontal(|ui| {
+      // * Navigation bar
+      let navigation = ui.text_edit_singleline(&mut state.navigation);
 
-    if search.changed() {
-      state.current_path = std::path::PathBuf::from(state.path_search.clone());
-    }
+      if navigation.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+        state.current_path = std::path::PathBuf::from(state.navigation.clone());
+        update_current_dir(state);
+        // * Very important piece of logic that needs to be moved
+      } else if state.current_path != state.last_path {
+        update_current_dir(state);
+      }
+
+      // * Search bar
+      let _search = ui.text_edit_singleline(&mut state.search);
+    });
+
     ui.end_row();
 
     ui.horizontal(|ui| {
@@ -123,15 +135,10 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
     ui.end_row();
     egui::ScrollArea::vertical().show(ui, |ui| {
       egui::Grid::new("central_grid").show(ui, |ui| {
-        if search.lost_focus() && ui.input().key_pressed(egui::Key::Enter)
-          || state.current_path != state.last_path
-        {
-          update_current_dir(state);
-        }
         ui.end_row();
         ui.spacing_mut().item_spacing.y = 1.5;
-          // * Current directory file menu
-          file_menu(state, ui);
+        // * Current directory file menu
+        file_menu(state, ui);
       });
     });
   });
@@ -149,7 +156,7 @@ pub fn update_current_dir(state: &mut Themis) {
   let dir_path = std::path::Path::new(&state.current_path);
   if let Ok(dir) = read_dir(dir_path) {
     set_current_dir(dir_path).unwrap();
-    state.path_search = dir_path.to_str().unwrap().to_owned();
+    state.navigation = dir_path.to_str().unwrap().to_owned();
     state.current_path = dir_path.to_path_buf();
     state.dir_entries = Vec::new();
 

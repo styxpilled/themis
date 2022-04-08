@@ -7,70 +7,72 @@ use crate::ui::update_current_dir;
 pub fn file_menu(state: &mut Themis, ui: &mut egui::Ui) {
   ui.vertical(|ui| {
     for entry in state.dir_entries.clone() {
-      ui.horizontal(|ui| {
-        let name = entry.name.clone();
-        let path = entry.path.clone();
-        let is_dir = entry.path.is_dir();
-        let dir_size = ByteSize(entry.size);
-        let label = if is_dir {
-          format!("{}/", name)
-        } else {
-          name.to_owned()
-        };
-        let formatted = if is_dir {
-          if entry.is_empty {
-            format!("🗁 {} ({})", label, dir_size)
+      if state.search == "" || entry.name.to_lowercase().contains(&state.search.to_lowercase()) {
+        ui.horizontal(|ui| {
+          let name = entry.name.clone();
+          let path = entry.path.clone();
+          let is_dir = entry.path.is_dir();
+          let dir_size = ByteSize(entry.size);
+          let label = if is_dir {
+            format!("{}/", name)
           } else {
-            format!("🗀 {} ({})", label, dir_size)
-          }
-        } else {
-          format!("🗋 {} ({})", label, dir_size)
-        };
-        if state.rename.target.clone().unwrap_or_default() != path {
-          let thing = ui.add(egui::Label::new(formatted).sense(egui::Sense::click()));
-          if thing.double_clicked() {
-            if is_dir {
-              state.current_path = path.to_path_buf()
+            name.to_owned()
+          };
+          let formatted = if is_dir {
+            if entry.is_empty {
+              format!("🗁 {} ({})", label, dir_size)
             } else {
-              open::that(path.to_str().unwrap()).unwrap()
+              format!("🗀 {} ({})", label, dir_size)
             }
-          }
-          if thing.hovered() {
-            state.selected_path = path.to_path_buf();
-          }
-          thing.context_menu(|ui| {
-            context_menu(state, ui);
-          });
-        } else {
-          let rename_bar = ui.text_edit_singleline(&mut state.rename.value);
-          if rename_bar.lost_focus() {
-            if state.rename.value != "" {
-              let new_name = state.rename.value.clone();
-              let new_path = state
-                .rename
-                .target
-                .clone()
-                .unwrap()
-                .with_file_name(new_name);
-              std::fs::rename(state.rename.target.clone().unwrap(), new_path).unwrap();
-              update_current_dir(state);
-            }
-            state.rename.target = None;
-            state.rename.value = String::new();
           } else {
-            rename_bar.request_focus();
+            format!("🗋 {} ({})", label, dir_size)
+          };
+          if state.rename.target.clone().unwrap_or_default() != path {
+            let thing = ui.add(egui::Label::new(formatted).sense(egui::Sense::click()));
+            if thing.double_clicked() {
+              if is_dir {
+                state.current_path = path.to_path_buf()
+              } else {
+                open::that(path.to_str().unwrap()).unwrap()
+              }
+            }
+            if thing.hovered() {
+              state.selected_path = path.to_path_buf();
+            }
+            thing.context_menu(|ui| {
+              context_menu(state, ui);
+            });
+          } else {
+            let rename_bar = ui.text_edit_singleline(&mut state.rename.value);
+            if rename_bar.lost_focus() {
+              if state.rename.value != "" {
+                let new_name = state.rename.value.clone();
+                let new_path = state
+                  .rename
+                  .target
+                  .clone()
+                  .unwrap()
+                  .with_file_name(new_name);
+                std::fs::rename(state.rename.target.clone().unwrap(), new_path).unwrap();
+                update_current_dir(state);
+              }
+              state.rename.target = None;
+              state.rename.value = String::new();
+            } else {
+              rename_bar.request_focus();
+            }
+            if rename_bar.gained_focus() {
+              state.rename.value = name.to_owned();
+            }
           }
-          if rename_bar.gained_focus() {
-            state.rename.value = name.to_owned();
-          }
-        }
-      });
-      ui.end_row();
-      ui.add(egui::Separator::spacing(
-        egui::Separator::horizontal(egui::Separator::default()),
-        0.0,
-      ));
-      ui.end_row();
+        });
+        ui.end_row();
+        ui.add(egui::Separator::spacing(
+          egui::Separator::horizontal(egui::Separator::default()),
+          0.0,
+        ));
+        ui.end_row();
+      }
     }
   })
   .response

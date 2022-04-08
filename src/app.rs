@@ -13,7 +13,8 @@ use crate::ui;
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))] // if we add new fields, give them default values when deserializing old state
 pub struct Themis {
-  pub path_search: String,
+  pub navigation: String,
+  pub search: String,
   #[cfg_attr(feature = "persistence", serde(skip))]
   pub rename: Rename,
   pub current_path: std::path::PathBuf,
@@ -49,7 +50,8 @@ impl Default for Themis {
       }
     }
     Self {
-      path_search: current_dir().unwrap().to_str().unwrap().to_owned(),
+      navigation: current_dir().unwrap().to_str().unwrap().to_owned(),
+      search: String::new(),
       rename: Rename::default(),
       pinned_dirs: Vec::new(),
       current_path: current_dir().unwrap(),
