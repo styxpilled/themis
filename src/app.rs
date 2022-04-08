@@ -29,6 +29,8 @@ pub struct Themis {
   #[cfg_attr(feature = "persistence", serde(skip))]
   pub dir_watcher: DirWatcher,
   pub dir_entries: Vec<DirEntry>,
+  #[cfg_attr(feature = "persistence", serde(skip))]
+  pub panel_open: PanelOpen,
 }
 
 impl Default for Themis {
@@ -62,6 +64,7 @@ impl Default for Themis {
       fs_receiver: crossbeam_channel::unbounded().1,
       dir_watcher: DirWatcher::default(),
       filesystem: mft_ntfs::Filesystem::new(),
+      panel_open: PanelOpen::FileMenu,
     }
   }
 }
@@ -69,6 +72,12 @@ impl Default for Themis {
 #[derive(Debug)]
 enum Error {
   // dont panic
+}
+
+#[derive(PartialEq)]
+pub enum PanelOpen {
+  FileMenu,
+  Settings,
 }
 
 pub struct Rename {
