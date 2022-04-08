@@ -206,6 +206,8 @@ impl epi::App for Themis {
       };
       sender.send(val).unwrap();
     });
+
+    ui::update_current_dir(self);
   }
 
   /// Called by the frame work to save state before shutdown.
