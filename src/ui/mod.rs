@@ -2,6 +2,7 @@ use crate::app::{DirEntry, DirWatcherEvent, Themis};
 use eframe::egui;
 use std::env::set_current_dir;
 use std::fs::read_dir;
+use regex::Regex;
 
 mod file_menu;
 use file_menu::file_menu;
@@ -102,7 +103,10 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
       }
 
       // * Search bar
-      let _search = ui.text_edit_singleline(&mut state.search);
+      let search = ui.text_edit_singleline(&mut state.search);
+      if search.changed() {
+        update_current_dir(state);
+      }
     });
 
     ui.end_row();
@@ -160,30 +164,34 @@ pub fn update_current_dir(state: &mut Themis) {
     state.current_path = dir_path.to_path_buf();
     state.dir_entries = Vec::new();
 
+    let re = Regex::new(&state.search).unwrap_or(Regex::new("").unwrap());
     for entry in dir {
       let entrypath = entry.unwrap().path();
-      let dir_size = match state
-        .filesystem
-        .files
-        .get(&entrypath.clone().into_os_string().into_string().unwrap())
-      {
-        Some(dir_size) => dir_size.real_size,
-        None => 0,
-      };
+      let name = entrypath
+        .clone()
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+      if state.search == "" || re.is_match(&name) {
+        let dir_size = match state
+          .filesystem
+          .files
+          .get(&entrypath.clone().into_os_string().into_string().unwrap())
+        {
+          Some(dir_size) => dir_size.real_size,
+          None => 0,
+        };
 
-      state.dir_entries.push(DirEntry {
-        name: entrypath
-          .clone()
-          .file_name()
-          .unwrap()
-          .to_str()
-          .unwrap()
-          .to_owned(),
-        path: entrypath.clone(),
-        size: dir_size,
-        is_dir: entrypath.clone().is_dir(),
-        is_empty: entrypath.is_dir() && entrypath.read_dir().unwrap().count() == 0,
-      });
+        state.dir_entries.push(DirEntry {
+          name,
+          path: entrypath.clone(),
+          size: dir_size,
+          is_dir: entrypath.clone().is_dir(),
+          is_empty: entrypath.is_dir() && entrypath.read_dir().unwrap().count() == 0,
+        });
+      }
     }
   }
   if state.last_path != state.current_path {

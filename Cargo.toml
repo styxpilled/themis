@@ -14,6 +14,7 @@ mft_ntfs = { git = "https://github.com/styxpilled/mft-ntfs", features = ["progre
 open = "2.1.1" # for opening files
 crossbeam-channel = "0.5.4" # Thread channels
 notify = "5.0.0-pre.14" # Watching directories for changes
+regex = "1.5.5" # for regex matching
 
 [features]
 default = ["persistence"]

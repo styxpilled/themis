@@ -1907,6 +1907,7 @@ dependencies = [
  "mft_ntfs",
  "notify",
  "open",
+ "regex",
  "serde",
 ]
 
