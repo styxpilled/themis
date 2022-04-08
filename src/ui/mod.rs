@@ -3,6 +3,7 @@ use eframe::egui;
 use std::env::set_current_dir;
 use std::fs::read_dir;
 use regex::Regex;
+use glob::Pattern;
 
 mod file_menu;
 use file_menu::file_menu;
@@ -164,7 +165,8 @@ pub fn update_current_dir(state: &mut Themis) {
     state.current_path = dir_path.to_path_buf();
     state.dir_entries = Vec::new();
 
-    let re = Regex::new(&state.search).unwrap_or(Regex::new("").unwrap());
+    // let re = Regex::new(&state.search).unwrap_or(Regex::new("").unwrap());
+    let matcher = Pattern::new(&state.search).unwrap_or(Pattern::new("").unwrap());
     for entry in dir {
       let entrypath = entry.unwrap().path();
       let name = entrypath
@@ -174,7 +176,7 @@ pub fn update_current_dir(state: &mut Themis) {
         .to_str()
         .unwrap()
         .to_owned();
-      if state.search == "" || re.is_match(&name) {
+      if state.search == "" || matcher.matches(&name) {
         let dir_size = match state
           .filesystem
           .files
