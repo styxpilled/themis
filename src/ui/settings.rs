@@ -4,6 +4,7 @@ use eframe::egui;
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
   pub search_mode: SearchMode,
+  pub search_sensitive: bool,
   pub show_francis: bool,
 }
 
@@ -11,6 +12,7 @@ impl Default for Settings {
   fn default() -> Self {
     Self {
       search_mode: SearchMode::Glob,
+      search_sensitive: false,
       show_francis: true,
     }
   }
@@ -41,7 +43,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
 
   egui::CentralPanel::default().show(ctx, |ui| {
     ui.spacing_mut().item_spacing.x = 1.5;
-    egui::ComboBox::from_label("Take your pick")
+    egui::ComboBox::from_label("Search Mode")
       .selected_text(format!("{:?}", state.settings.search_mode))
       .show_ui(ui, |ui| {
         ui.selectable_value(
@@ -60,6 +62,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
           "Contains",
         );
       });
+    ui.checkbox( &mut state.settings.search_sensitive, "Search case sensitivity");
     ui.checkbox( &mut state.settings.show_francis, "Show Francis");
   });
 }

@@ -41,8 +41,14 @@ pub fn update_current_dir(state: &mut Themis) {
     state.current_path = dir_path.to_path_buf();
     state.dir_entries = Vec::new();
 
-    let glob = Pattern::new(&state.search).unwrap_or(Pattern::new("").unwrap());
-    let re = Regex::new(&state.search).unwrap_or(Regex::new("").unwrap());
+    let search = if state.settings.search_sensitive {
+      state.search.clone()
+    } else {
+      state.search.clone().to_lowercase()
+    };
+
+    let glob = Pattern::new(&search).unwrap_or(Pattern::new("").unwrap());
+    let re = Regex::new(&search).unwrap_or(Regex::new("").unwrap());
 
     for entry in dir {
       let path = entry.unwrap().path();
@@ -54,13 +60,19 @@ pub fn update_current_dir(state: &mut Themis) {
         .unwrap()
         .to_owned();
 
+      let match_name = if state.settings.search_sensitive {
+        name.clone()
+      } else {
+        name.clone().to_lowercase()
+      };
+
       if state.search == "" {
         update(state, name, path);
-      } else if state.settings.search_mode == SearchMode::Glob && glob.matches(&name) {
+      } else if state.settings.search_mode == SearchMode::Glob && glob.matches(&match_name) {
         update(state, name, path);
-      } else if state.settings.search_mode == SearchMode::Regex && re.is_match(&name) {
+      } else if state.settings.search_mode == SearchMode::Regex && re.is_match(&match_name) {
         update(state, name, path);
-      } else if state.settings.search_mode == SearchMode::Contains && name.contains(&state.search) {
+      } else if state.settings.search_mode == SearchMode::Contains && match_name.contains(&search) {
         update(state, name, path);
       }
 
