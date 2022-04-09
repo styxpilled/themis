@@ -24,7 +24,10 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
   }
 
   egui::SidePanel::left("side_panel").show(ctx, |ui| {
-    ui.heading("( ._.)");
+    if state.settings.show_francis {
+      ui.heading("( ._.)");
+    }
+    
     ui.heading("Pinned:");
     for pin in state.pinned_dirs.clone() {
       if ui.button(pin.to_str().unwrap()).clicked() {

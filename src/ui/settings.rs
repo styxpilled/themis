@@ -27,7 +27,9 @@ pub enum SearchMode {
 
 pub fn main(ctx: &egui::Context, state: &mut Themis) {
   egui::SidePanel::left("side_panel").show(ctx, |ui| {
-    ui.heading("( ._.)");
+    if state.settings.show_francis {
+      ui.heading("( ._.)");
+    }
 
     ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
       ui.horizontal(|ui| {
