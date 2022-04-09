@@ -7,6 +7,7 @@ use glob::Pattern;
 
 mod file_menu;
 mod main;
+pub mod settings;
 use file_menu::file_menu;
 
 pub fn main(ctx: &egui::Context, state: &mut Themis) {
@@ -26,6 +27,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
     main::main(ctx, state);
   }
   else if state.panel_open == PanelOpen::Settings {
+    settings::main(ctx, state);
   }
 }
 

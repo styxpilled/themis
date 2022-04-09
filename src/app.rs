@@ -8,6 +8,7 @@ use std::thread;
 
 use crate::misc::fonts::setup_custom_fonts;
 use crate::ui;
+use crate::ui::settings::Settings;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
@@ -31,6 +32,7 @@ pub struct Themis {
   pub dir_entries: Vec<DirEntry>,
   #[cfg_attr(feature = "persistence", serde(skip))]
   pub panel_open: PanelOpen,
+  pub settings: Settings,
 }
 
 impl Default for Themis {
@@ -65,6 +67,7 @@ impl Default for Themis {
       dir_watcher: DirWatcher::default(),
       filesystem: mft_ntfs::Filesystem::new(),
       panel_open: PanelOpen::Main,
+      settings: Settings::default(),
     }
   }
 }
