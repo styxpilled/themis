@@ -207,6 +207,14 @@ impl epi::App for Themis {
     let (sender, receiver) = crossbeam_channel::unbounded();
     self.fs_receiver = receiver;
 
+    let load_sender = sender.clone();
+
+    thread::spawn(move || {
+      let unserialised = std::fs::read("filesystem.bin").unwrap();
+      let filesystem = bincode::deserialize::<mft_ntfs::Filesystem>(&unserialised).unwrap();
+      load_sender.send(filesystem).unwrap();
+    });
+
     thread::spawn(move || {
       let val = mft_ntfs::main(None);
       let val = match val {
@@ -216,6 +224,11 @@ impl epi::App for Themis {
           return;
         }
       };
+      let serialised = bincode::serialize(&val).unwrap();
+      // save serialised data to file
+      let mut file = std::fs::File::create("filesystem.bin").unwrap();
+      std::io::Write::write_all(&mut file, &serialised).unwrap();
+
       sender.send(val).unwrap();
     });
 
@@ -227,6 +240,11 @@ impl epi::App for Themis {
   #[cfg(feature = "persistence")]
   fn save(&mut self, storage: &mut dyn epi::Storage) {
     epi::set_value(storage, epi::APP_KEY, self);
+    // * Don't save the fs when the app is being closed
+    // * It takes +-15 seconds
+    // let serialised = bincode::serialize(&self.filesystem).unwrap();
+    // let mut file = std::fs::File::create("filesystem.bin").unwrap();
+    // std::io::Write::write_all(&mut file, &serialised).unwrap();
   }
 
   /// Called each time the UI needs repainting, which may be many times per second.
