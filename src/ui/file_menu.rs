@@ -6,7 +6,13 @@ use crate::ui::update_current_dir;
 
 pub fn file_menu(state: &mut Themis, ui: &mut egui::Ui) {
   ui.vertical(|ui| {
-    for entry in state.dir_entries.clone() {
+    let dir_entries;
+    if state.search == "" {
+      dir_entries = state.dir_entries.clone();
+    } else {
+      dir_entries = state.search_results.clone();
+    }
+    for entry in dir_entries {
       ui.horizontal(|ui| {
         let name = entry.name.clone();
         let path = entry.path.clone();

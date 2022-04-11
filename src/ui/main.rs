@@ -3,7 +3,7 @@ use eframe::egui;
 use std::fs::read_dir;
 
 use super::file_menu;
-use crate::ui::update_current_dir;
+use crate::ui::{update_current_dir, update_search};
 
 pub fn main(ctx: &egui::Context, state: &mut Themis) {
   if state.filesystem.files.is_empty() {
@@ -19,6 +19,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
       || event.kind == notify::EventKind::Remove(notify::event::RemoveKind::Any)
     {
       // println!("{:?}", event.paths);
+      println!("updating because file changed");
       update_current_dir(state);
     }
   }
@@ -99,13 +100,15 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
         update_current_dir(state);
         // * Very important piece of logic that needs to be moved
       } else if state.current_path != state.last_path {
+        println!("updating because path changed");
         update_current_dir(state);
       }
 
       // * Search bar
       let search = ui.text_edit_singleline(&mut state.search);
-      if search.changed() {
-        update_current_dir(state);
+      if search.changed() && state.search != "" {
+        println!("updating because of search");
+        update_search(state);
       }
     });
 

@@ -2,7 +2,7 @@ use eframe::{egui, epi};
 use notify::{Event, RecursiveMode, Watcher};
 use std::env::current_dir;
 use std::ffi::OsString;
-use std::fs::read_dir;
+// use std::fs::read_dir;
 use std::path::PathBuf;
 use std::thread;
 
@@ -30,6 +30,7 @@ pub struct Themis {
   #[cfg_attr(feature = "persistence", serde(skip))]
   pub dir_watcher: DirWatcher,
   pub dir_entries: Vec<DirEntry>,
+  pub search_results: Vec<DirEntry>,
   #[cfg_attr(feature = "persistence", serde(skip))]
   pub panel_open: PanelOpen,
   pub settings: Settings,
@@ -37,22 +38,22 @@ pub struct Themis {
 
 impl Default for Themis {
   fn default() -> Self {
-    let mut dir_entries = Vec::new();
-    let path = current_dir().unwrap();
-    if let Ok(dir) = read_dir(path) {
-      for entry in dir {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        let dir_entry = DirEntry {
-          name: entry.file_name().into_string().unwrap(),
-          path: path.clone(),
-          size: entry.metadata().unwrap().len(),
-          is_dir: path.is_dir(),
-          is_empty: path.is_dir() && path.read_dir().unwrap().count() == 0,
-        };
-        dir_entries.push(dir_entry);
-      }
-    }
+    // let mut dir_entries = Vec::new();
+    // let path = current_dir().unwrap();
+    // if let Ok(dir) = read_dir(path) {
+    //   for entry in dir {
+    //     let entry = entry.unwrap();
+    //     let path = entry.path();
+    //     let dir_entry = DirEntry {
+    //       name: entry.file_name().into_string().unwrap(),
+    //       path: path.clone(),
+    //       size: entry.metadata().unwrap().len(),
+    //       is_dir: path.is_dir(),
+    //       is_empty: path.is_dir() && path.read_dir().unwrap().count() == 0,
+    //     };
+    //     dir_entries.push(dir_entry);
+    //   }
+    // }
     Self {
       navigation: current_dir().unwrap().to_str().unwrap().to_owned(),
       search: String::new(),
@@ -62,7 +63,8 @@ impl Default for Themis {
       drive_list: Vec::new(),
       last_path: current_dir().unwrap(),
       selected_path: current_dir().unwrap(),
-      dir_entries,
+      dir_entries: Vec::new(),
+      search_results: Vec::new(),
       fs_receiver: crossbeam_channel::unbounded().1,
       dir_watcher: DirWatcher::default(),
       filesystem: mft_ntfs::Filesystem::new(),

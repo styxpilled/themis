@@ -5,6 +5,8 @@ use eframe::egui;
 pub struct Settings {
   pub search_mode: SearchMode,
   pub search_sensitive: bool,
+  pub search_recursive: bool,
+  pub search_strict: bool,
   pub show_francis: bool,
 }
 
@@ -13,6 +15,8 @@ impl Default for Settings {
     Self {
       search_mode: SearchMode::Glob,
       search_sensitive: false,
+      search_recursive: false,
+      search_strict: false,
       show_francis: true,
     }
   }
@@ -65,6 +69,8 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
         );
       });
     ui.checkbox( &mut state.settings.search_sensitive, "Search case sensitivity");
+    ui.checkbox(&mut state.settings.search_recursive, "Search recursive");
+    ui.checkbox(&mut state.settings.search_strict, "Search strict");
     ui.checkbox( &mut state.settings.show_francis, "Show Francis");
   });
 }
