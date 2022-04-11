@@ -3,21 +3,34 @@ use eframe::egui;
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
-  pub search_mode: SearchMode,
-  pub search_sensitive: bool,
-  pub search_recursive: bool,
-  pub search_strict: bool,
+  pub search: SearchSettings,
   pub show_francis: bool,
 }
 
 impl Default for Settings {
   fn default() -> Self {
     Self {
-      search_mode: SearchMode::Glob,
-      search_sensitive: false,
-      search_recursive: false,
-      search_strict: false,
+      search: SearchSettings::default(),
       show_francis: true,
+    }
+  }
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+pub struct SearchSettings {
+  pub mode: SearchMode,
+  pub sensitive: bool,
+  pub recursive: bool,
+  pub strict: bool,
+}
+
+impl Default for SearchSettings {
+  fn default() -> Self {
+    Self {
+      mode: SearchMode::Glob,
+      sensitive: false,
+      recursive: false,
+      strict: false,
     }
   }
 }
@@ -50,27 +63,27 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
   egui::CentralPanel::default().show(ctx, |ui| {
     ui.spacing_mut().item_spacing.x = 1.5;
     egui::ComboBox::from_label("Search Mode")
-      .selected_text(format!("{:?}", state.settings.search_mode))
+      .selected_text(format!("{:?}", state.settings.search.mode))
       .show_ui(ui, |ui| {
         ui.selectable_value(
-          &mut state.settings.search_mode,
+          &mut state.settings.search.mode,
           SearchMode::Glob,
           "Glob",
         );
         ui.selectable_value(
-          &mut state.settings.search_mode,
+          &mut state.settings.search.mode,
           SearchMode::Regex,
           "Regex",
         );
         ui.selectable_value(
-          &mut state.settings.search_mode,
+          &mut state.settings.search.mode,
           SearchMode::Contains,
           "Contains",
         );
       });
-    ui.checkbox( &mut state.settings.search_sensitive, "Search case sensitivity");
-    ui.checkbox(&mut state.settings.search_recursive, "Search recursive");
-    ui.checkbox(&mut state.settings.search_strict, "Search strict");
+    ui.checkbox( &mut state.settings.search.sensitive, "Search case sensitivity");
+    ui.checkbox(&mut state.settings.search.recursive, "Search recursive");
+    ui.checkbox(&mut state.settings.search.strict, "Search strict");
     ui.checkbox( &mut state.settings.show_francis, "Show Francis");
   });
 }

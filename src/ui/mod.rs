@@ -47,7 +47,7 @@ pub fn update_search(state: &mut Themis) {
     }
     reg.push_str(&state.search.clone());
 
-    if state.settings.search_strict {
+    if state.settings.search.strict {
       reg.push('$');
     }
     let matcher = reg;
@@ -56,16 +56,16 @@ pub fn update_search(state: &mut Themis) {
     let glob = Pattern::new(&matcher).unwrap_or(Pattern::new("!*").unwrap());
     let re = Regex::new(&matcher).unwrap_or(Regex::new("$-").unwrap());
 
-    if state.settings.search_recursive && !state.filesystem.files.is_empty() {
+    if state.settings.search.recursive && !state.filesystem.files.is_empty() {
       for (path, _entry) in state.filesystem.files.iter() {
         let search;
-        if !state.settings.search_sensitive {
+        if !state.settings.search.sensitive {
           search = path.clone().to_lowercase();
         } else {
           search = path.clone();
         };
-        if state.settings.search_mode == SearchMode::Glob && glob.matches(&search)
-          || state.settings.search_mode == SearchMode::Regex && re.is_match(&search)
+        if state.settings.search.mode == SearchMode::Glob && glob.matches(&search)
+          || state.settings.search.mode == SearchMode::Regex && re.is_match(&search)
           || re.is_match(&search)
         {
           state.search_results.push(update2(
@@ -91,16 +91,16 @@ pub fn update_search(state: &mut Themis) {
           .unwrap()
           .to_owned();
 
-        let search = if state.settings.search_sensitive {
+        let search = if state.settings.search.sensitive {
           path.clone().to_str().unwrap().to_string()
         } else {
           path.clone().to_str().unwrap().to_lowercase()
         };
 
         if state.search == ""
-          || state.settings.search_mode == SearchMode::Glob && glob.matches(&search)
-          || state.settings.search_mode == SearchMode::Regex && re.is_match(&search)
-          || state.settings.search_mode == SearchMode::Contains && search.contains(&matcher)
+          || state.settings.search.mode == SearchMode::Glob && glob.matches(&search)
+          || state.settings.search.mode == SearchMode::Regex && re.is_match(&search)
+          || state.settings.search.mode == SearchMode::Contains && search.contains(&matcher)
         {
           state.search_results.push(update2(state, name, path));
         }
