@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::thread;
 
 use crate::misc::fonts::setup_custom_fonts;
-use crate::ui;
+use crate::{ui, misc};
 use crate::ui::settings::Settings;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -234,7 +234,7 @@ impl epi::App for Themis {
       sender.send(val).unwrap();
     });
 
-    ui::update_current_dir(self);
+    misc::search::update_current_dir(self);
   }
 
   /// Called by the frame work to save state before shutdown.

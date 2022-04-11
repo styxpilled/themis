@@ -2,7 +2,7 @@ use crate::app::Themis;
 use bytesize::ByteSize;
 use eframe::egui;
 
-use crate::ui::update_current_dir;
+use crate::misc::search::update_current_dir;
 
 pub fn file_menu(state: &mut Themis, ui: &mut egui::Ui) {
   ui.vertical(|ui| {

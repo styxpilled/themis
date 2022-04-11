@@ -3,7 +3,7 @@ use eframe::egui;
 use std::fs::read_dir;
 
 use super::file_menu;
-use crate::ui::{update_current_dir, update_search};
+use crate::misc::search::{update_current_dir, update_search};
 
 pub fn main(ctx: &egui::Context, state: &mut Themis) {
   if state.filesystem.files.is_empty() {
