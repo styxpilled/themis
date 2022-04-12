@@ -211,8 +211,11 @@ impl epi::App for Themis {
 
     let load_sender = sender.clone();
 
+    let load_path = self.settings.save_load.location.clone().join("filesystem.bin");
+    let save_path = load_path.clone();
+
     thread::spawn(move || {
-      let unserialised = std::fs::read("filesystem.bin").unwrap();
+      let unserialised = std::fs::read(load_path).unwrap();
       let filesystem = bincode::deserialize::<mft_ntfs::Filesystem>(&unserialised).unwrap();
       load_sender.send(filesystem).unwrap();
     });
@@ -228,7 +231,7 @@ impl epi::App for Themis {
       };
       let serialised = bincode::serialize(&val).unwrap();
       // save serialised data to file
-      let mut file = std::fs::File::create("filesystem.bin").unwrap();
+      let mut file = std::fs::File::create(save_path).unwrap();
       std::io::Write::write_all(&mut file, &serialised).unwrap();
 
       sender.send(val).unwrap();
