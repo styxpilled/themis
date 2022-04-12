@@ -10,6 +10,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
     let output = state.fs_receiver.try_recv();
     if let Ok(output) = output {
       state.filesystem = output;
+      update_current_dir(state);
     }
   }
 
