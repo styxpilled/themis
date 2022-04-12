@@ -40,21 +40,28 @@ impl Default for SaveLoadSettings {
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct SearchSettings {
-  pub mode: SearchMode,
+  pub search_mode: SearchMode,
   pub sensitive: bool,
   pub recursive: bool,
-  pub strict: bool,
+  pub match_mode: MatchMode,
 }
 
 impl Default for SearchSettings {
   fn default() -> Self {
     Self {
-      mode: SearchMode::Glob,
+      search_mode: SearchMode::Glob,
       sensitive: false,
       recursive: false,
-      strict: false,
+      match_mode: MatchMode::Normal,
     }
   }
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize, Debug, PartialEq)]
+pub enum MatchMode {
+  Loose,
+  Normal,
+  Strict,
 }
 
 #[derive(Clone, serde::Deserialize, serde::Serialize, Debug, PartialEq)]
@@ -85,12 +92,20 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
   egui::CentralPanel::default().show(ctx, |ui| {
     ui.spacing_mut().item_spacing.x = 1.5;
     egui::ComboBox::from_label("Search Mode")
-      .selected_text(format!("{:?}", state.settings.search.mode))
+      .selected_text(format!("{:?}", state.settings.search.search_mode))
       .show_ui(ui, |ui| {
-        ui.selectable_value(&mut state.settings.search.mode, SearchMode::Glob, "Glob");
-        ui.selectable_value(&mut state.settings.search.mode, SearchMode::Regex, "Regex");
         ui.selectable_value(
-          &mut state.settings.search.mode,
+          &mut state.settings.search.search_mode,
+          SearchMode::Glob,
+          "Glob",
+        );
+        ui.selectable_value(
+          &mut state.settings.search.search_mode,
+          SearchMode::Regex,
+          "Regex",
+        );
+        ui.selectable_value(
+          &mut state.settings.search.search_mode,
           SearchMode::Contains,
           "Contains",
         );
@@ -100,14 +115,30 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
       "Search case sensitivity",
     );
     ui.checkbox(&mut state.settings.search.recursive, "Search recursive");
-    ui.checkbox(&mut state.settings.search.strict, "Search strict");
-
+    egui::ComboBox::from_label("Match Mode")
+      .selected_text(format!("{:?}", state.settings.search.search_mode))
+      .show_ui(ui, |ui| {
+        ui.selectable_value(
+          &mut state.settings.search.match_mode,
+          MatchMode::Loose,
+          "Loose",
+        );
+        ui.selectable_value(
+          &mut state.settings.search.match_mode,
+          MatchMode::Normal,
+          "Normal",
+        );
+        ui.selectable_value(
+          &mut state.settings.search.match_mode,
+          MatchMode::Strict,
+          "Strict",
+        );
+      });
 
     ui.horizontal(|ui| {
       if state.settings.save_load.location_is_valid {
         ui.visuals_mut().override_text_color = Some(egui::Color32::LIGHT_GREEN);
-      }
-      else {
+      } else {
         ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
       }
       let location_input = ui.text_edit_singleline(&mut state.settings.save_load.location_input);

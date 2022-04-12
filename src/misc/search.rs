@@ -5,7 +5,7 @@ use std::env::set_current_dir;
 use std::fs::read_dir;
 use std::path::PathBuf;
 
-use crate::ui::settings::SearchMode;
+use crate::ui::settings::{SearchMode, MatchMode};
 
 pub fn update_search(state: &mut Themis) {
   if state.search == "" {}
@@ -21,9 +21,16 @@ pub fn update_search(state: &mut Themis) {
     }
     reg.push_str(&state.search.clone());
 
-    if state.settings.search.strict {
+    if state.settings.search.match_mode == MatchMode::Strict {
       reg.push('$');
     }
+    else if state.settings.search.match_mode == MatchMode::Normal {
+      reg.push_str("[^\\\\]*$");
+    }
+    if !state.settings.search.sensitive {
+      reg = reg.to_lowercase();
+    };
+
     let matcher = reg;
     println!("{}", matcher);
 
@@ -31,7 +38,7 @@ pub fn update_search(state: &mut Themis) {
     let re = Regex::new(&matcher).unwrap_or(Regex::new("$-").unwrap());
 
     if state.settings.search.recursive && !state.filesystem.files.is_empty() {
-      for (path, _entry) in state.filesystem.files.iter() {
+      for path in state.filesystem.files.keys() {
         let search;
         if !state.settings.search.sensitive {
           search = path.clone().to_lowercase();
@@ -39,8 +46,8 @@ pub fn update_search(state: &mut Themis) {
           search = path.clone();
         };
         // TODO: only make mode checks at the start of the loop
-        if state.settings.search.mode == SearchMode::Glob && glob.matches(&search)
-          || state.settings.search.mode == SearchMode::Regex && re.is_match(&search)
+        if state.settings.search.search_mode == SearchMode::Glob && glob.matches(&search)
+          || state.settings.search.search_mode == SearchMode::Regex && re.is_match(&search)
           || re.is_match(&search)
         {
           state.search_results.push(update(
@@ -73,9 +80,9 @@ pub fn update_search(state: &mut Themis) {
         };
 
         if state.search == ""
-          || state.settings.search.mode == SearchMode::Glob && glob.matches(&search)
-          || state.settings.search.mode == SearchMode::Regex && re.is_match(&search)
-          || state.settings.search.mode == SearchMode::Contains && search.contains(&matcher)
+          || state.settings.search.search_mode == SearchMode::Glob && glob.matches(&search)
+          || state.settings.search.search_mode == SearchMode::Regex && re.is_match(&search)
+          || state.settings.search.search_mode == SearchMode::Contains && search.contains(&matcher)
         {
           state.search_results.push(update(state, name, path));
         }
@@ -85,37 +92,39 @@ pub fn update_search(state: &mut Themis) {
 }
 
 pub fn update_current_dir(state: &mut Themis) {
-  let dir_path = std::path::Path::new(&state.current_path);
-  if let Ok(dir) = read_dir(dir_path) {
-    set_current_dir(dir_path).unwrap();
-    state.navigation = dir_path.to_str().unwrap().to_owned();
-    state.current_path = dir_path.to_path_buf();
-    state.dir_entries = Vec::new();
+  if state.search == "" {
+    let dir_path = std::path::Path::new(&state.current_path);
+    if let Ok(dir) = read_dir(dir_path) {
+      set_current_dir(dir_path).unwrap();
+      state.navigation = dir_path.to_str().unwrap().to_owned();
+      state.current_path = dir_path.to_path_buf();
+      state.dir_entries = Vec::new();
 
-    for entry in dir {
-      let path = entry.unwrap().path();
-      let name = path
-        .clone()
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_owned();
-      state.dir_entries.push(update(state, name, path));
+      for entry in dir {
+        let path = entry.unwrap().path();
+        let name = path
+          .clone()
+          .file_name()
+          .unwrap()
+          .to_str()
+          .unwrap()
+          .to_owned();
+        state.dir_entries.push(update(state, name, path));
+      }
     }
-  }
-  if state.last_path != state.current_path {
-    state
-      .dir_watcher
-      .watcher_updater
-      .send((DirWatcherEvent::Remove, state.last_path.clone()))
-      .unwrap();
-    state
-      .dir_watcher
-      .watcher_updater
-      .send((DirWatcherEvent::Add, state.current_path.clone()))
-      .unwrap();
-    state.last_path = state.current_path.clone();
+    if state.last_path != state.current_path {
+      state
+        .dir_watcher
+        .watcher_updater
+        .send((DirWatcherEvent::Remove, state.last_path.clone()))
+        .unwrap();
+      state
+        .dir_watcher
+        .watcher_updater
+        .send((DirWatcherEvent::Add, state.current_path.clone()))
+        .unwrap();
+      state.last_path = state.current_path.clone();
+    }
   }
 }
 
