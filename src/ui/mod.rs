@@ -1,14 +1,17 @@
 use crate::app::{DirEntry, DirWatcherEvent, PanelOpen, Themis};
 use eframe::egui;
+use glob::Pattern;
+use regex::Regex;
 use std::env::set_current_dir;
 use std::fs::read_dir;
-// use regex::Regex;
-use glob::Pattern;
+use std::path::PathBuf;
 
 mod file_menu;
 mod main;
 pub mod settings;
 use file_menu::file_menu;
+
+use self::settings::SearchMode;
 
 pub fn main(ctx: &egui::Context, state: &mut Themis) {
   egui::TopBottomPanel::top("top_pannel").show(ctx, |ui| {
@@ -25,8 +28,7 @@ pub fn main(ctx: &egui::Context, state: &mut Themis) {
 
   if state.panel_open == PanelOpen::Main {
     main::main(ctx, state);
-  }
-  else if state.panel_open == PanelOpen::Settings {
+  } else if state.panel_open == PanelOpen::Settings {
     settings::main(ctx, state);
   }
 }
@@ -39,33 +41,44 @@ pub fn update_current_dir(state: &mut Themis) {
     state.current_path = dir_path.to_path_buf();
     state.dir_entries = Vec::new();
 
-    // let re = Regex::new(&state.search).unwrap_or(Regex::new("").unwrap());
-    let matcher = Pattern::new(&state.search).unwrap_or(Pattern::new("").unwrap());
+    let glob = Pattern::new(&state.search).unwrap_or(Pattern::new("").unwrap());
+    let re = Regex::new(&state.search).unwrap_or(Regex::new("").unwrap());
+
     for entry in dir {
-      let entrypath = entry.unwrap().path();
-      let name = entrypath
+      let path = entry.unwrap().path();
+      let name = path
         .clone()
         .file_name()
         .unwrap()
         .to_str()
         .unwrap()
         .to_owned();
-      if state.search == "" || matcher.matches(&name) {
-        let dir_size = match state
+
+      if state.search == "" {
+        update(state, name, path);
+      } else if state.settings.search_mode == SearchMode::Glob && glob.matches(&name) {
+        update(state, name, path);
+      } else if state.settings.search_mode == SearchMode::Regex && re.is_match(&name) {
+        update(state, name, path);
+      } else if state.settings.search_mode == SearchMode::Contains && name.contains(&state.search) {
+        update(state, name, path);
+      }
+
+      fn update(state: &mut Themis, name: String, path: PathBuf) {
+        let size = match state
           .filesystem
           .files
-          .get(&entrypath.clone().into_os_string().into_string().unwrap())
+          .get(&path.clone().into_os_string().into_string().unwrap())
         {
-          Some(dir_size) => dir_size.real_size,
+          Some(size) => size.real_size,
           None => 0,
         };
-
         state.dir_entries.push(DirEntry {
           name,
-          path: entrypath.clone(),
-          size: dir_size,
-          is_dir: entrypath.clone().is_dir(),
-          is_empty: entrypath.is_dir() && entrypath.read_dir().unwrap().count() == 0,
+          path: path.clone(),
+          size,
+          is_dir: path.clone().is_dir(),
+          is_empty: path.is_dir() && path.read_dir().unwrap().count() == 0,
         });
       }
     }
