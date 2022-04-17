@@ -64,7 +64,7 @@ impl Default for Themis {
       fs_receiver: crossbeam_channel::unbounded().1,
       dir_watcher: DirWatcher::default(),
       filesystem: mft_ntfs::Filesystem::new(),
-      panel_open: PanelOpen::FileMenu,
+      panel_open: PanelOpen::Main,
     }
   }
 }
@@ -76,7 +76,7 @@ enum Error {
 
 #[derive(PartialEq)]
 pub enum PanelOpen {
-  FileMenu,
+  Main,
   Settings,
 }
 
